@@ -6,7 +6,7 @@ Thanks for testing Synapse. Your job is to use it the way real students and facu
 
 1. Accept the GitHub invitation to the organisation.
 2. Get your logins from the project lead. They're private, so don't share them or post them anywhere.
-3. Open the QA site: **`<QA_SITE_URL>`**
+3. Open the QA site: **<https://synapse-cuk.vercel.app>**
 4. Follow the [test plan](test-plan.md).
 
 ## Your accounts

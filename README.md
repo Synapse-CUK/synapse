@@ -4,6 +4,8 @@ A LinkedIn-style network for CSE, IT and IoT students and faculty. Students post
 
 Built with Next.js 15, Convex and Clerk.
 
+**QA site:** <https://synapse-cuk.vercel.app>. It uses test data only, so don't enter real personal details.
+
 ## What's built
 
 | Area | Status |

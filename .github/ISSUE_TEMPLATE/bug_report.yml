@@ -1,0 +1,87 @@
+name: Bug report
+description: Something on the QA site doesn't work as expected
+title: "[Bug] "
+labels: ["bug", "status: reported"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [open issues](../issues) first, so we don't get duplicates.
+        Never paste a password into an issue. This repo is public.
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: Pick the closest match. docs/qa/tester-guide.md explains each level.
+      options:
+        - "S1: Blocker (data loss, security, or a main flow can't be used)"
+        - "S2: Major (a feature is broken, with a workaround)"
+        - "S3: Minor (works, but wrong or confusing)"
+        - "S4: Cosmetic (spelling, layout, styling)"
+    validations:
+      required: true
+  - type: dropdown
+    id: role
+    attributes:
+      label: Account type you used
+      options:
+        - Student
+        - Faculty
+        - Coordinator
+        - Fresh (onboarding)
+        - Signed out
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: Page URL
+      placeholder: /events/abc123
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Number each step so someone else can repeat it exactly.
+      placeholder: |
+        1. Sign in as a student account
+        2. Open Events
+        3. Click Host Event
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened
+      description: Include the exact error text if there is one.
+    validations:
+      required: true
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      options:
+        - Desktop
+        - Phone
+        - Tablet
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      placeholder: Chrome on Android
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshot or recording
+      description: Drag files here. Hide anything private first.

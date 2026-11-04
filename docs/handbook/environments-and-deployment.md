@@ -39,16 +39,18 @@ In Vercel, open the previous good deployment and choose **Promote to Production*
 
 | Variable | Set in | Purpose |
 | --- | --- | --- |
-| NEXT_PUBLIC_CONVEX_URL, NEXT_PUBLIC_CONVEX_SITE_URL, CONVEX_DEPLOYMENT | `.env.local`, Vercel | Which Convex deployment |
+| NEXT_PUBLIC_CONVEX_URL, NEXT_PUBLIC_CONVEX_SITE_URL, CONVEX_DEPLOYMENT | `.env.local` only | Which Convex deployment. Written by `npx convex dev`. **Not set in Vercel:** `npx convex deploy` passes the prod URL to the build |
 | NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY | `.env.local`, Vercel | Clerk |
 | NEXT_PUBLIC_CLERK_SIGN_IN_URL and friends | `.env.local`, Vercel | Clerk routes |
-| CONVEX_DEPLOY_KEY | Vercel | Lets the build deploy Convex prod |
+| CONVEX_DEPLOY_KEY | Vercel (Production) | Lets the build deploy Convex prod and tells it which deployment |
 | CLERK_JWT_ISSUER_DOMAIN | Convex env (both) | Verifies Clerk tokens |
 | CLERK_WEBHOOK_SECRET | Convex env (both) | Verifies the webhook |
 | ALLOWED_EMAIL_DOMAIN | Convex env | Only logs a warning today |
 | ALLOW_DATA_RESET | Convex env, **dev only** | Allows `admin:resetAllData` |
 
-Set Convex variables with `npx convex env set NAME value` (add `--prod` for the live site).
+Set Convex variables with `npx convex env set NAME value` (add `--prod` for the live site). Check Vercel's list with `npx vercel env ls`.
+
+Vercel has exactly these: `CONVEX_DEPLOY_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, and the four `NEXT_PUBLIC_CLERK_*_URL` route variables (checked 4 November 2026).
 
 ## Accounts and dashboards
 

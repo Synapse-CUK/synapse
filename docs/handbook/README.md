@@ -14,6 +14,9 @@ The team handbook for Synapse (also in Notion), the campus network for the CSE, 
 
 | Page | Read it when |
 | --- | --- |
+| **[Sprint 1: Tags and Top Students](sprint-1-tags-and-top-students.md)** | You're a volunteer this week: the to-do list until Wednesday 11 November |
+| [Spec: Tags](spec-tags.md) | You're on Team A |
+| [Spec: Top Students by Field](spec-top-students-by-field.md) | You're on Team B |
 | [Start Here](start-here.md) | It's your first day |
 | [Product and Roles](product-and-roles.md) | You need to know what the app does and who can do what |
 | [Architecture](architecture.md) | You want the big picture of how the pieces connect |
@@ -33,5 +36,6 @@ The team handbook for Synapse (also in Notion), the campus network for the CSE, 
 ## Status on 4 November 2026
 
 - **Live:** the Christ University redesign, no landing page, light mode only, one-click test logins on localhost.
-- **In review (written, tested, not pushed):** the roles and onboarding fix. Coordinators get faculty powers, faculty onboarding asks only for name and department, readable error messages on the live site, and more. All 36 automated tests pass.
+- **On a branch, not live yet:** the roles and onboarding fix, on `fix/roles-and-onboarding`. Coordinators get faculty powers, faculty onboarding asks only for name and department, readable error messages on the live site, and more. All 36 automated tests pass. It merges to `main` after the browser walkthrough.
 - **Blocked:** the Convex command line can't connect from Amal's terminal, so the dev database can't be reset and the browser walkthrough is waiting.
+- **This week (4 to 11 November):** Sprint 1. Volunteers build **Tags** and **Top students by field** from the two specs. Demo on Wednesday 11 November.

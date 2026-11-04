@@ -1,5 +1,7 @@
 # Product and Roles
 
+> This page describes the app with the roles fix, which is on branch `fix/roles-and-onboarding` and not live yet. Until it merges, the live site still asks faculty for a registration number and doesn't give coordinators faculty powers.
+
 ## What Synapse is
 
 A campus network for the CSE, IT and IoT sections: a LinkedIn for students and faculty.

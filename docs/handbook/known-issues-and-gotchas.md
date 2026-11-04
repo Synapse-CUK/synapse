@@ -6,6 +6,7 @@ Open problems are tracked in Linear. This page explains the ones that surprise p
 
 | Issue | Effect | Linear project |
 | --- | --- | --- |
+| The roles fix isn't on `main` yet | Live site: coordinators lack faculty powers, faculty asked for a registration number, errors show as "Server Error". Fixed on `fix/roles-and-onboarding`; branch from it for Sprint 1 work | Roles & onboarding fix |
 | Deleting an achievement keeps its XP and file | XP totals can be inflated; storage fills up | Roles & onboarding fix |
 | Proof and GitHub links accept any text | A bad link can appear as a clickable link | Roles & onboarding fix |
 | No server-side limits on titles, team size, deadline | Direct calls can create odd events | Roles & onboarding fix |

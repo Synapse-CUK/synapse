@@ -2,11 +2,18 @@
 
 Dates are targets, not promises. The live list is in Linear.
 
-## Now: finish the roles and onboarding fix
+## Now: Sprint 1, Tags and Top Students (4 to 11 November)
+
+Built by the volunteers. See **Sprint 1: Tags and Top Students** for the day-by-day list.
+
+- Tags on achievements, each in one generic field (**Spec: Tags**)
+- A Top students page ranked by verified work per field (**Spec: Top Students by Field**)
+
+## Also now: finish the roles and onboarding fix
 
 - Unblock the Convex command line on Amal's machine
 - Reset the dev database, walk through every role in the browser
-- Ship: coordinator powers, faculty onboarding, readable errors, students-only teams
+- Merge `fix/roles-and-onboarding` to `main`: coordinator powers, faculty onboarding, readable errors, students-only teams
 - Fix: achievement deletion (XP and files), link validation, server-side limits
 
 ## Next: QA rollout

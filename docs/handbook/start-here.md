@@ -29,6 +29,10 @@ Ask Amal for each of these:
 
 ## 4. Pick your first task
 
+**This week (4 to 11 November) everyone works on Sprint 1.** Open **Sprint 1: Tags and Top Students**, join Team A or Team B, and read your team's spec.
+
+After the sprint:
+
 1. In Linear, filter the Synapse team by the label **Good first issue**, or ask Amal.
 2. Assign it to yourself and move it to **In Progress**.
 3. Follow **How We Work** for branches, commits and finishing.

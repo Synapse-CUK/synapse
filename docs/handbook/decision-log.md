@@ -18,3 +18,7 @@ Add a row whenever the team decides something that someone might later ask "why?
 | 2026-11-04 | Only students join teams; class codes only for students | Faculty have no semester |
 | 2026-11-04 | User-facing errors use ConvexError | Production hides plain error messages |
 | 2026-11-04 | Linear for tasks, Notion for docs, GitHub Issues for QA bugs | Team can manage its own work |
+| 2026-11-04 | The roles fix waits on branch `fix/roles-and-onboarding` until the browser walkthrough | Only `main` deploys; don't ship untested role changes to testers |
+| 2026-11-04 | Sprint 1 (to 11 November): Tags and Top students by field, built by volunteers from specs | Amal's call: the team builds, specs give the rules |
+| 2026-11-04 | Tags go in an `achievementTags` table, not an array on the achievement | Convex can't index inside arrays; filtering and counting need an index |
+| 2026-11-04 | Field scores are recomputed, not incremented | Recomputing can't drift if an update is missed or repeated |

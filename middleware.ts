@@ -5,6 +5,8 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  // Dev-only test logins; the route itself returns 404 outside `next dev`.
+  "/api/dev-login",
 ]);
 
 // This only checks that the visitor is signed in. Roles live in Convex, so role

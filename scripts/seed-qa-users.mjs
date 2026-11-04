@@ -84,12 +84,13 @@ function runConvex(deployment, fn, args) {
   execFileSync(process.execPath, cliArgs, { cwd: root, stdio: ["ignore", "ignore", "inherit"] });
 }
 
-function loadSavedPasswords() {
+/** Existing CSV rows keyed by email, so a re-run keeps passwords and other testers' rows. */
+function loadSavedRows() {
   const saved = new Map();
   if (!existsSync(credentialsPath)) return saved;
   for (const line of readFileSync(credentialsPath, "utf8").split(/\r?\n/).slice(1)) {
     const [, , email, password] = line.split(",");
-    if (email && password) saved.set(email, password);
+    if (email && password) saved.set(email, line);
   }
   return saved;
 }
@@ -142,11 +143,11 @@ async function ensureClerkUser(secretKey, account, password) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const secretKey = readClerkSecretKey();
-  const saved = loadSavedPasswords();
-  const rows = [];
+  const rows = loadSavedRows();
+  let seeded = 0;
 
   for (const account of buildAccounts(options)) {
-    const password = saved.get(account.email) ?? randomBytes(12).toString("base64url");
+    const password = rows.get(account.email)?.split(",")[3] ?? randomBytes(12).toString("base64url");
     const clerkId = await ensureClerkUser(secretKey, account, password);
 
     runConvex(options.deployment, "admin:seedQaUser", {
@@ -160,13 +161,14 @@ async function main() {
         : {}),
     });
 
-    rows.push([account.tester, account.kind, account.email, password].join(","));
+    rows.set(account.email, [account.tester, account.kind, account.email, password].join(","));
+    seeded++;
     // Save after each account so a failure part-way keeps the passwords already set.
-    writeFileSync(credentialsPath, [CSV_HEADER, ...rows, ""].join("\n"));
+    writeFileSync(credentialsPath, [CSV_HEADER, ...rows.values(), ""].join("\n"));
     console.log(`ok  ${account.email}`);
   }
 
-  console.log(`\nSeeded ${rows.length} accounts on ${options.deployment}.`);
+  console.log(`\nSeeded ${seeded} accounts on ${options.deployment}.`);
   console.log(`Logins saved to ${credentialsPath} (gitignored).`);
 }
 

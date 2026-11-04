@@ -87,7 +87,17 @@ Security rules are tested in `convex/security.test.ts`. CI runs all of these on 
 node scripts/seed-qa-users.mjs --testers 5
 ```
 
-This creates test logins and saves them to `qa-credentials.local.csv`, which is gitignored. See [docs/qa/tester-guide.md](docs/qa/tester-guide.md).
+This creates test logins and saves them to `qa-credentials.local.csv`, which is gitignored. Re-running keeps existing passwords and other testers' rows. See [docs/qa/tester-guide.md](docs/qa/tester-guide.md).
+
+### One-click test logins (local only)
+
+Under `npm run dev`, the sign-in page shows **Student**, **Faculty** and **Coordinator** buttons that sign you in as the `qa01` accounts. They use a single-use Clerk sign-in ticket rather than a password, so Convex sees a normal session and every role check still applies. The buttons and the `/api/dev-login` route only work under `next dev` on localhost with a Clerk `sk_test_` key. Production builds don't include the buttons, and the route returns 404 there.
+
+Your dev Convex deployment needs the qa01 records once:
+
+```bash
+node scripts/seed-qa-users.mjs --testers 1 --deployment dev
+```
 
 ## Project layout
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useSyncExternalStore } from "react";
+import { ReactNode } from "react";
 import { ClerkProvider, useAuth } from "@clerk/nextjs";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexReactClient } from "convex/react";
@@ -8,25 +8,8 @@ import { ConvexReactClient } from "convex/react";
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL || "";
 const convex = new ConvexReactClient(convexUrl);
 
-const DARK_QUERY = "(prefers-color-scheme: dark)";
-
-function subscribeToScheme(onChange: () => void) {
-  const media = window.matchMedia(DARK_QUERY);
-  media.addEventListener("change", onChange);
-  return () => media.removeEventListener("change", onChange);
-}
-
-/** Follows the OS colour scheme so Clerk's sign-in and account UI match the app. */
-function usePrefersDark() {
-  return useSyncExternalStore(
-    subscribeToScheme,
-    () => window.matchMedia(DARK_QUERY).matches,
-    () => false,
-  );
-}
-
 // Hex values mirror the tokens in app/globals.css.
-const clerkLight = {
+const clerkColors = {
   colorPrimary: "#0b1f3a",
   colorTextOnPrimaryBackground: "#fdfdfe",
   colorBackground: "#fdfdfe",
@@ -39,27 +22,12 @@ const clerkLight = {
   colorSuccess: "#157652",
 };
 
-const clerkDark = {
-  colorPrimary: "#e9b86c",
-  colorTextOnPrimaryBackground: "#0b1f3a",
-  colorBackground: "#0b1729",
-  colorInputBackground: "#101f36",
-  colorText: "#ecf1f8",
-  colorTextSecondary: "#909fb6",
-  colorInputText: "#ecf1f8",
-  colorNeutral: "#ecf1f8",
-  colorDanger: "#f2808c",
-  colorSuccess: "#56c796",
-};
-
 export default function ConvexClientProvider({ children }: { children: ReactNode }) {
-  const prefersDark = usePrefersDark();
-
   return (
     <ClerkProvider
       appearance={{
         variables: {
-          ...(prefersDark ? clerkDark : clerkLight),
+          ...clerkColors,
           fontFamily: "var(--font-sans), system-ui, sans-serif",
           borderRadius: "0.75rem",
         },

@@ -4,7 +4,7 @@
 
 /*
  * Colour tokens, stored as "R G B" so Tailwind can apply opacity.
- * Light mode is the default; dark mode follows the operating system.
+ * The app is light mode only.
  */
 @layer base {
   :root {
@@ -46,49 +46,6 @@
 
     --focus: 12 77 139;
     --shadow: 11 31 58;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      color-scheme: dark;
-
-      --canvas: 6 14 26;
-      --surface: 11 23 41;
-      --sunken: 16 31 54;
-      --line: 31 48 76;
-      --line-strong: 50 72 106;
-
-      --ink: 236 241 248;
-      --body: 192 203 219;
-      --muted: 144 159 182;
-
-      --band: 14 38 70;
-      --band-ink: 238 242 248;
-
-      --navy: 11 31 58;
-      --navy-tint: 22 38 64;
-      --royal: 120 176 236;
-      --royal-tint: 17 40 72;
-      --gold: 232 163 46;
-      --gold-soft: 233 184 108;
-      --gold-ink: 236 188 112;
-      --gold-tint: 48 35 14;
-
-      --primary: 233 184 108;
-      --primary-hover: 242 200 134;
-      --on-primary: 11 31 58;
-      --accent: 232 163 46;
-      --on-accent: 11 31 58;
-
-      --success: 86 199 150;
-      --success-tint: 14 46 35;
-      --on-success: 6 14 26;
-      --danger: 242 128 140;
-      --danger-tint: 54 18 25;
-
-      --focus: 233 184 108;
-      --shadow: 0 0 0;
-    }
   }
 
   html {

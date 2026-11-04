@@ -5,7 +5,7 @@ import type { Config } from "tailwindcss";
  *
  * Palette taken from the Christ University website: deep navy #0b1f3a,
  * royal blue #0c4d8b and amber-gold #d98600 / #ddae68. Every colour is a CSS
- * variable (see app/globals.css) so light and dark mode swap in one place.
+ * variable (see app/globals.css) so the palette lives in one place.
  *
  * Radius rule: surfaces (cards, panels, modals) use rounded-2xl, controls
  * (buttons, inputs, selects) use rounded-xl, chips and badges are fully round,
@@ -64,13 +64,8 @@ const config: Config = {
           to: { opacity: "1", transform: "translateY(0) scale(1)" },
         },
         shimmer: { from: { transform: "translateX(-100%)" }, to: { transform: "translateX(100%)" } },
-        rise: {
-          from: { opacity: "0", transform: "translateY(18px)" },
-          to: { opacity: "1", transform: "translateY(0)" },
-        },
       },
       animation: {
-        rise: "rise 900ms cubic-bezier(0.16, 1, 0.3, 1) both",
         "fade-in": "fade-in 200ms ease-out both",
         "modal-in": "modal-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both",
         shimmer: "shimmer 1.6s ease-in-out infinite",

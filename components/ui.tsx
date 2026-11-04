@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useId, useRef, useState } from "react";
+import { ReactNode, useEffect, useId, useRef } from "react";
 import { Icons } from "./Icons";
 
 /* ------------------------------------------------------------------ */
@@ -297,59 +297,6 @@ export function Modal({
         </div>
         <div className="overflow-y-auto">{children}</div>
       </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Motion                                                              */
-/* ------------------------------------------------------------------ */
-
-/**
- * Fades content up once it scrolls into view. Uses IntersectionObserver, so
- * nothing runs on scroll, and it is skipped when the user prefers reduced motion.
- */
-export function Reveal({
-  children,
-  delay = 0,
-  className = "",
-}: {
-  children: ReactNode;
-  delay?: number;
-  className?: string;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [shown, setShown] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setShown(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShown(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.15, rootMargin: "0px 0px -40px 0px" },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div
-      ref={ref}
-      style={{ transitionDelay: `${delay}ms` }}
-      className={`transition duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-        shown ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
-      } ${className}`}
-    >
-      {children}
     </div>
   );
 }

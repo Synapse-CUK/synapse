@@ -26,7 +26,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 border-b border-line/80 bg-canvas/85 backdrop-blur-md supports-[backdrop-filter]:bg-canvas/70">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-6 px-4 sm:px-6">
         <div className="flex items-center gap-8">
-          <Link href="/" className="group flex shrink-0 items-center gap-2.5" aria-label="Synapse home">
+          <Link href="/feed" className="group flex shrink-0 items-center gap-2.5" aria-label="Synapse feed">
             <BrandMark className="h-8 w-8 transition-transform duration-300 group-hover:-rotate-6" />
             <span className="font-display text-[1.6rem] font-semibold leading-none tracking-tight text-ink">
               Synapse

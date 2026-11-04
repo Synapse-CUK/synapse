@@ -6,6 +6,8 @@ Built with Next.js 15, Convex and Clerk.
 
 **QA site:** <https://synapse-cuk.vercel.app>. It uses test data only, so don't enter real personal details.
 
+**New to the team?** Start with the [team handbook](docs/handbook/README.md). This week's work is [Sprint 1: Tags and Top Students](docs/handbook/sprint-1-tags-and-top-students.md).
+
 ## What's built
 
 | Area | Status |

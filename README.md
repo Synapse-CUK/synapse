@@ -19,12 +19,14 @@ Built with Next.js 15, Convex and Clerk.
 
 ## Roles
 
-| Role | Can do |
-| --- | --- |
-| Student | Post achievements, host and join events |
-| Faculty pending | Same as a student, while a coordinator reviews the request |
-| Faculty | Also verify achievements |
-| Coordinator | Manage users, events, achievements and faculty approvals |
+| Role | Can do | Onboarding asks for |
+| --- | --- | --- |
+| Student | Post achievements, join and host teams | Name, section, registration no., admission year |
+| Faculty (pending) | Browse until a coordinator approves | Name, department |
+| Faculty | Verify achievements, faculty dashboard, host events, assign students | Nothing more |
+| Coordinator | Everything faculty can, plus the coordinator dashboard | Nothing; granted with `admin:setRole` or by another coordinator |
+
+Only students have a semester and class code, and only students join teams.
 
 Roles live in Convex. Clerk is only used for sign-in.
 
@@ -96,6 +98,16 @@ Under `npm run dev`, the sign-in page shows **Student**, **Faculty** and **Coord
 Your dev Convex deployment needs the qa01 records once:
 
 ```bash
+node scripts/seed-qa-users.mjs --testers 1 --deployment dev
+```
+
+### Start the dev database fresh
+
+`admin:resetAllData` deletes every record and uploaded file. It refuses to run unless the deployment has `ALLOW_DATA_RESET=true`, so only ever set that on dev:
+
+```bash
+npx convex env set ALLOW_DATA_RESET true
+npx convex run admin:resetAllData
 node scripts/seed-qa-users.mjs --testers 1 --deployment dev
 ```
 

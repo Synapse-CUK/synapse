@@ -6,24 +6,19 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { SECTIONS, type Section } from "@/convex/lib/validators";
+import { ROLE_META, isStudent, type Role } from "@/convex/lib/roles";
 import { Icons } from "@/components/Icons";
 import { Alert, Avatar, EmptyState, LoadingScreen, Modal, PageHeader, Spinner, StatusScreen } from "@/components/ui";
+import { errorMessage } from "@/lib/errors";
 
 // Types
 
 type TabId = "overview" | "faculty" | "users" | "events" | "achievements";
-type UserRole = "student" | "faculty_pending" | "faculty" | "coordinator";
+type UserRole = Role;
 type EventStatus = "recruiting" | "in_progress" | "completed";
 type Feedback = { id: string; text: string; type: "success" | "error" } | null;
 
 // Helpers
-
-const ROLE_META: Record<UserRole, { label: string; chip: string }> = {
-  student: { label: "Student", chip: "chip-neutral" },
-  faculty_pending: { label: "Faculty pending", chip: "chip-gold" },
-  faculty: { label: "Faculty", chip: "chip-royal" },
-  coordinator: { label: "Coordinator", chip: "chip-navy" },
-};
 
 const STATUS_META: Record<EventStatus, { label: string; chip: string }> = {
   recruiting: { label: "Recruiting", chip: "chip-success" },
@@ -169,8 +164,8 @@ function FacultyApprovalsTab() {
       setFeedback(null);
       await approveFaculty({ userId });
       setFeedback({ id: userId, text: "Approved. They now have faculty access.", type: "success" });
-    } catch (e: any) {
-      setFeedback({ id: userId, text: e.message ?? "Approval failed.", type: "error" });
+    } catch (e) {
+      setFeedback({ id: userId, text: errorMessage(e, "Approval failed."), type: "error" });
     } finally {
       setProcessingId(null);
     }
@@ -183,8 +178,8 @@ function FacultyApprovalsTab() {
       setFeedback(null);
       await rejectFaculty({ userId });
       setFeedback({ id: userId, text: "Request rejected. Their role is now student.", type: "error" });
-    } catch (e: any) {
-      setFeedback({ id: userId, text: e.message ?? "Rejection failed.", type: "error" });
+    } catch (e) {
+      setFeedback({ id: userId, text: errorMessage(e, "Rejection failed."), type: "error" });
     } finally {
       setProcessingId(null);
     }
@@ -282,6 +277,7 @@ function UsersTab() {
     searchQuery: search.trim() || undefined,
   });
   const updateRole = useMutation(api.coordinator.updateUserRole);
+  const me = useQuery(api.users.current);
 
   function requestRoleChange(userId: Id<"users">, name: string, newRole: UserRole) {
     setPendingChange({ userId, name, newRole });
@@ -296,8 +292,8 @@ function UsersTab() {
       setFeedback(null);
       await updateRole({ userId, role: newRole });
       setFeedback({ id: userId, text: `${name} is now ${ROLE_META[newRole].label.toLowerCase()}.`, type: "success" });
-    } catch (e: any) {
-      setFeedback({ id: userId, text: e.message ?? "Update failed.", type: "error" });
+    } catch (e) {
+      setFeedback({ id: userId, text: errorMessage(e, "Update failed."), type: "error" });
     } finally {
       setProcessingId(null);
     }
@@ -424,7 +420,9 @@ function UsersTab() {
                         </Link>
                       </td>
                       <td className="px-4 py-3 text-muted">{u.universityEmail || u.email}</td>
-                      <td className="px-4 py-3 font-mono text-xs uppercase text-body">{u.registrationNumber || "None"}</td>
+                      <td className="px-4 py-3 font-mono text-xs uppercase text-body">
+                        {isStudent(u.role) ? u.registrationNumber || "Missing" : ""}
+                      </td>
                       <td className="px-4 py-3 font-medium text-body">{u.section}</td>
                       <td className="px-4 py-3">
                         <RoleBadge role={u.role} />
@@ -437,7 +435,8 @@ function UsersTab() {
                           id={`role-${u._id}`}
                           value={u.role}
                           onChange={(e) => requestRoleChange(u._id, u.name, e.target.value as UserRole)}
-                          disabled={processingId === u._id}
+                          disabled={processingId === u._id || u._id === me?._id}
+                          title={u._id === me?._id ? "You can't change your own role" : undefined}
                           className="input-field h-9 w-44 text-sm"
                         >
                           <option value="student">Student</option>
@@ -479,8 +478,8 @@ function EventsTab() {
       setFeedback(null);
       await deleteEvent({ eventId });
       setFeedback({ id: eventId, text: `Deleted "${title}" and everything linked to it.`, type: "success" });
-    } catch (e: any) {
-      setFeedback({ id: eventId, text: e.message ?? "Delete failed.", type: "error" });
+    } catch (e) {
+      setFeedback({ id: eventId, text: errorMessage(e, "Delete failed."), type: "error" });
     } finally {
       setProcessingId(null);
     }
@@ -493,8 +492,8 @@ function EventsTab() {
       setFeedback(null);
       await forceUpdateStatus({ eventId, status });
       setFeedback({ id: eventId, text: `Status set to ${STATUS_META[status].label.toLowerCase()}.`, type: "success" });
-    } catch (e: any) {
-      setFeedback({ id: eventId, text: e.message ?? "Update failed.", type: "error" });
+    } catch (e) {
+      setFeedback({ id: eventId, text: errorMessage(e, "Update failed."), type: "error" });
     } finally {
       setProcessingId(null);
     }
@@ -614,8 +613,8 @@ function AchievementsTab() {
       setFeedback(null);
       await deleteAchievement({ achievementId });
       setFeedback({ id: achievementId, text: `Deleted "${title}".`, type: "success" });
-    } catch (e: any) {
-      setFeedback({ id: achievementId, text: e.message ?? "Delete failed.", type: "error" });
+    } catch (e) {
+      setFeedback({ id: achievementId, text: errorMessage(e, "Delete failed."), type: "error" });
     } finally {
       setProcessingId(null);
     }

@@ -1,7 +1,8 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getCurrentUser } from "./lib/auth";
-import { getEffectiveSemester, getClassCode } from "./lib/semester";
+import { hasFacultyAccess } from "./lib/roles";
+import { getAcademicInfo } from "./lib/semester";
 import { sectionValidator } from "./lib/validators";
 
 /**
@@ -25,7 +26,7 @@ export const createEvent = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthenticated call to createEvent");
+      throw new ConvexError("Unauthenticated call to createEvent");
     }
 
     const host = await ctx.db
@@ -34,14 +35,14 @@ export const createEvent = mutation({
       .unique();
 
     if (!host) {
-      throw new Error("Host user profile not found");
+      throw new ConvexError("Host user profile not found");
     }
 
     const eligibleSemesters = args.eligibleSemesters ?? "all";
 
     const eventId = await ctx.db.insert("events", {
       hostId: host._id,
-      hostType: host.role === "faculty" ? "faculty" : "student",
+      hostType: hasFacultyAccess(host.role) ? "faculty" : "student",
       title: args.title,
       description: args.description,
       techStack: args.techStack,
@@ -59,7 +60,7 @@ export const createEvent = mutation({
     await ctx.db.insert("teamMembers", {
       eventId,
       userId: host._id,
-      role: host.role === "faculty" ? "Faculty Mentor" : "Project Lead",
+      role: hasFacultyAccess(host.role) ? "Faculty Mentor" : "Project Lead",
       status: "accepted",
     });
 
@@ -109,7 +110,7 @@ export const listEvents = query({
                 name: host.name,
                 role: host.role,
                 section: host.section,
-                classCode: getClassCode(getEffectiveSemester(host), host.section),
+                classCode: getAcademicInfo(host).classCode,
               }
             : null,
           acceptedCount,
@@ -146,8 +147,9 @@ export const getEvent = query({
     const membersWithUsers = await Promise.all(
       teamMemberDocs.map(async (member) => {
         const user = await ctx.db.get(member.userId);
-        const effectiveSem = user ? getEffectiveSemester(user) : 1;
-        const classCode = user ? getClassCode(effectiveSem, user.section) : "";
+        const { effectiveSemester, classCode } = user
+          ? getAcademicInfo(user)
+          : { effectiveSemester: null, classCode: null };
 
         return {
           ...member,
@@ -156,7 +158,7 @@ export const getEvent = query({
                 _id: user._id,
                 name: user.name,
                 section: user.section,
-                effectiveSemester: effectiveSem,
+                effectiveSemester,
                 classCode,
                 role: user.role,
               }
@@ -174,7 +176,7 @@ export const getEvent = query({
             name: host.name,
             role: host.role,
             section: host.section,
-            classCode: getClassCode(getEffectiveSemester(host), host.section),
+            classCode: getAcademicInfo(host).classCode,
           }
         : null,
       members: membersWithUsers,
@@ -193,7 +195,7 @@ export const updateEventStatus = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthenticated call");
+      throw new ConvexError("Unauthenticated call");
     }
 
     const user = await ctx.db
@@ -203,11 +205,11 @@ export const updateEventStatus = mutation({
 
     const event = await ctx.db.get(args.eventId);
     if (!event) {
-      throw new Error("Event not found");
+      throw new ConvexError("Event not found");
     }
 
     if (!user || user._id !== event.hostId) {
-      throw new Error("Only the event host can change the event status.");
+      throw new ConvexError("Only the event host can change the event status.");
     }
 
     await ctx.db.patch(args.eventId, {

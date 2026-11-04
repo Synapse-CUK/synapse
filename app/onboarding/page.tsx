@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
@@ -8,8 +8,13 @@ import { api } from "@/convex/_generated/api";
 import { Icons } from "@/components/Icons";
 import { SectionIcon, sectionBadgeClass, sectionSelectedClass } from "@/components/sectionUi";
 import { Alert, LoadingScreen, Spinner } from "@/components/ui";
+import { needsOnboarding } from "@/convex/lib/roles";
 import { computeCurrentSemester, getClassCode } from "@/convex/lib/semester";
 import { SECTIONS, type Section } from "@/convex/lib/validators";
+import { errorMessage } from "@/lib/errors";
+
+const THIS_YEAR = new Date().getFullYear();
+const ADMISSION_YEARS = Array.from({ length: 7 }, (_, i) => THIS_YEAR - i);
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -21,57 +26,57 @@ export default function OnboardingPage() {
   const [registrationNumber, setRegistrationNumber] = useState("");
   const [universityEmail, setUniversityEmail] = useState("");
   const [section, setSection] = useState<Section>("IT");
-  const [admissionYear, setAdmissionYear] = useState<number>(2024);
+  const [admissionYear, setAdmissionYear] = useState<number>(THIS_YEAR - 1);
   const [role, setRole] = useState<"student" | "faculty">("student");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  // Prefill once from Clerk, then once from the Convex record, so live updates
+  // never overwrite what the user is typing.
+  const prefilledFromClerk = useRef(false);
+  const prefilledFromDb = useRef(false);
+
   useEffect(() => {
-    if (clerkUser) {
-      setName(clerkUser.fullName || clerkUser.firstName || "");
-      if (clerkUser.primaryEmailAddress?.emailAddress) {
-        setUniversityEmail(clerkUser.primaryEmailAddress.emailAddress);
-      }
-    }
+    if (!clerkUser || prefilledFromClerk.current) return;
+    prefilledFromClerk.current = true;
+    setName((current) => current || clerkUser.fullName || clerkUser.firstName || "");
+    const email = clerkUser.primaryEmailAddress?.emailAddress;
+    if (email) setUniversityEmail((current) => current || email);
   }, [clerkUser]);
 
+  const alreadyDone = !!dbUser && !needsOnboarding(dbUser);
+
   useEffect(() => {
-    if (dbUser) {
-      if (dbUser.name) setName(dbUser.name);
-      if (dbUser.registrationNumber) setRegistrationNumber(dbUser.registrationNumber);
-      if (dbUser.universityEmail) setUniversityEmail(dbUser.universityEmail);
-      if (dbUser.section) setSection(dbUser.section);
-      if (dbUser.admissionYear) setAdmissionYear(dbUser.admissionYear);
-      if (
-        dbUser.role === "student" ||
-        dbUser.role === "faculty" ||
-        dbUser.role === "faculty_pending" ||
-        dbUser.role === "coordinator"
-      ) {
-        setRole(
-          dbUser.role === "faculty_pending" ? "faculty" : dbUser.role === "coordinator" ? "student" : dbUser.role,
-        );
-      }
-
-      // If user already completed onboarding, redirect to feed
-      if (dbUser.registrationNumber && dbUser.admissionYear) {
-        router.push("/feed");
-      }
+    if (alreadyDone) {
+      router.replace("/feed");
+      return;
     }
-  }, [dbUser, router]);
+    if (!dbUser || prefilledFromDb.current) return;
+    prefilledFromDb.current = true;
+    if (dbUser.name && dbUser.name !== "New user") setName(dbUser.name);
+    if (dbUser.registrationNumber) setRegistrationNumber(dbUser.registrationNumber);
+    if (dbUser.universityEmail) setUniversityEmail(dbUser.universityEmail);
+    if (dbUser.section) setSection(dbUser.section);
+    if (dbUser.admissionYear) setAdmissionYear(dbUser.admissionYear);
+  }, [alreadyDone, dbUser, router]);
 
-  if (!isClerkLoaded || dbUser === undefined) {
+  if (!isClerkLoaded || dbUser === undefined || alreadyDone) {
     return <LoadingScreen label="Checking your account" />;
   }
 
+  const isFaculty = role === "faculty";
   const computedSem = computeCurrentSemester(admissionYear);
   const previewClassCode = getClassCode(computedSem, section);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !registrationNumber.trim()) {
-      setError("Please enter your full name and registration number.");
+    if (!name.trim()) {
+      setError("Please enter your full name.");
+      return;
+    }
+    if (!isFaculty && !registrationNumber.trim()) {
+      setError("Please enter your registration number.");
       return;
     }
 
@@ -81,18 +86,16 @@ export default function OnboardingPage() {
 
       await completeOnboarding({
         name: name.trim(),
-        registrationNumber: registrationNumber.trim(),
         universityEmail: universityEmail.trim() || undefined,
         section,
-        admissionYear: Number(admissionYear),
         role,
+        ...(isFaculty ? {} : { registrationNumber: registrationNumber.trim(), admissionYear }),
       });
 
       router.push("/feed");
-    } catch (err: any) {
+    } catch (err) {
       console.error("Onboarding error:", err);
-      setError(err.message || "Failed to complete onboarding.");
-    } finally {
+      setError(errorMessage(err, "Failed to complete onboarding."));
       setIsSubmitting(false);
     }
   }
@@ -112,24 +115,36 @@ export default function OnboardingPage() {
         />
         <div className="relative">
           <h1 className="font-display text-4xl font-semibold leading-[1.05] text-band-ink md:text-5xl">
-            Set up your academic profile.
+            {isFaculty ? "Set up your faculty profile." : "Set up your academic profile."}
           </h1>
           <p className="mt-4 max-w-sm leading-relaxed text-band-ink/75">
-            Your section and admission year give you a class code. Events use it to check who can join.
+            {isFaculty
+              ? "Faculty only need a name and department. A coordinator approves faculty access."
+              : "Your section and admission year give you a class code. Events use it to check who can join."}
           </p>
 
           <div className="mt-10 rounded-xl border border-white/10 bg-white/5 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-band-ink/60">Your class code</p>
-            <p className="mt-2 font-mono text-4xl font-semibold tracking-tight text-gold-soft">{previewClassCode}</p>
-            <p className="mt-2 text-sm text-band-ink/70">
-              Semester {computedSem}, {section} section
-            </p>
+            {isFaculty ? (
+              <>
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-band-ink/60">Department</p>
+                <p className="mt-2 font-display text-4xl font-semibold tracking-tight text-gold-soft">{section}</p>
+                <p className="mt-2 text-sm text-band-ink/70">Faculty access after coordinator approval</p>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-band-ink/60">Your class code</p>
+                <p className="mt-2 font-mono text-4xl font-semibold tracking-tight text-gold-soft">{previewClassCode}</p>
+                <p className="mt-2 text-sm text-band-ink/70">
+                  Semester {computedSem}, {section} section
+                </p>
+              </>
+            )}
           </div>
         </div>
       </aside>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-7 lg:col-span-7">
+      <form onSubmit={handleSubmit} className="space-y-7 lg:col-span-7" noValidate>
         {error && <Alert tone="error">{error}</Alert>}
 
         <div role="group" aria-labelledby="role-label">
@@ -159,10 +174,10 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        {role === "faculty" && (
+        {isFaculty && (
           <Alert tone="warning" title="Faculty accounts need a coordinator's approval">
-            You&apos;ll start with a pending faculty account and full student access. Once a coordinator approves you,
-            you can verify achievements, use the faculty dashboard and host official events.
+            Until a coordinator approves you, you can browse the feed and projects. After approval you can verify
+            achievements, use the faculty dashboard and host official events.
           </Alert>
         )}
 
@@ -174,7 +189,7 @@ export default function OnboardingPage() {
             id="onb-name"
             type="text"
             autoComplete="name"
-            placeholder="e.g. Ananya Krishnan"
+            placeholder={isFaculty ? "e.g. Dr. Meera Iyer" : "e.g. Ananya Krishnan"}
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="input-field"
@@ -182,21 +197,23 @@ export default function OnboardingPage() {
           />
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label htmlFor="onb-reg" className="field-label">
-              Registration no.
-            </label>
-            <input
-              id="onb-reg"
-              type="text"
-              placeholder="e.g. 2024BTIT042"
-              value={registrationNumber}
-              onChange={(e) => setRegistrationNumber(e.target.value)}
-              className="input-field font-mono uppercase"
-              required
-            />
-          </div>
+        <div className={`grid gap-5 ${isFaculty ? "" : "sm:grid-cols-2"}`}>
+          {!isFaculty && (
+            <div>
+              <label htmlFor="onb-reg" className="field-label">
+                Registration no.
+              </label>
+              <input
+                id="onb-reg"
+                type="text"
+                placeholder="e.g. 2024BTIT042"
+                value={registrationNumber}
+                onChange={(e) => setRegistrationNumber(e.target.value)}
+                className="input-field font-mono uppercase"
+                required
+              />
+            </div>
+          )}
           <div>
             <label htmlFor="onb-email" className="field-label">
               University email <span className="field-hint ml-1">Optional</span>
@@ -213,10 +230,10 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className={`grid gap-5 ${isFaculty ? "" : "sm:grid-cols-2"}`}>
           <div role="group" aria-labelledby="onb-section-label">
             <span id="onb-section-label" className="field-label">
-              Section
+              {isFaculty ? "Department" : "Section"}
             </span>
             <div className="grid grid-cols-3 gap-2">
               {SECTIONS.map((sec) => (
@@ -236,30 +253,34 @@ export default function OnboardingPage() {
             </div>
           </div>
 
-          <div>
-            <label htmlFor="onb-year" className="field-label">
-              Admission year
-            </label>
-            <select
-              id="onb-year"
-              value={admissionYear}
-              onChange={(e) => setAdmissionYear(Number(e.target.value))}
-              className="input-field"
-            >
-              {[2026, 2025, 2024, 2023, 2022, 2021, 2020].map((yr) => (
-                <option key={yr} value={yr}>
-                  {yr}
-                </option>
-              ))}
-            </select>
-          </div>
+          {!isFaculty && (
+            <div>
+              <label htmlFor="onb-year" className="field-label">
+                Admission year
+              </label>
+              <select
+                id="onb-year"
+                value={admissionYear}
+                onChange={(e) => setAdmissionYear(Number(e.target.value))}
+                className="input-field"
+              >
+                {ADMISSION_YEARS.map((yr) => (
+                  <option key={yr} value={yr}>
+                    {yr}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Class code on small screens, where the preview panel scrolls away */}
-        <div className="flex items-center justify-between rounded-xl border border-line bg-surface px-4 py-3 lg:hidden">
-          <span className="text-sm text-muted">Your class code</span>
-          <span className={`${sectionBadgeClass(section)} font-mono text-sm`}>{previewClassCode}</span>
-        </div>
+        {!isFaculty && (
+          <div className="flex items-center justify-between rounded-xl border border-line bg-surface px-4 py-3 lg:hidden">
+            <span className="text-sm text-muted">Your class code</span>
+            <span className={`${sectionBadgeClass(section)} font-mono text-sm`}>{previewClassCode}</span>
+          </div>
+        )}
 
         <button type="submit" disabled={isSubmitting} className="btn-primary btn-lg w-full">
           {isSubmitting ? (
@@ -269,7 +290,7 @@ export default function OnboardingPage() {
             </>
           ) : (
             <>
-              Finish setup
+              {isFaculty ? "Request faculty access" : "Finish setup"}
               <Icons.ArrowRight className="h-4 w-4" />
             </>
           )}

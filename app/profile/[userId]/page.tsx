@@ -8,7 +8,8 @@ import { Id } from "@/convex/_generated/dataModel";
 import AchievementCard, { AchievementItem } from "@/components/AchievementCard";
 import EditProfileModal from "@/components/EditProfileModal";
 import { Icons } from "@/components/Icons";
-import { SectionIcon, sectionBadgeClass } from "@/components/sectionUi";
+import { RoleIcon, SectionIcon, sectionBadgeClass } from "@/components/sectionUi";
+import { ROLE_META, isStudent } from "@/convex/lib/roles";
 import { Avatar, EmptyState, LoadingScreen, StatusScreen } from "@/components/ui";
 
 export default function UserProfilePage({ params }: { params: Promise<{ userId: string }> }) {
@@ -76,16 +77,14 @@ export default function UserProfilePage({ params }: { params: Promise<{ userId: 
             <div>
               <h1 className="display text-4xl md:text-5xl">{profile.name}</h1>
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className="chip-navy font-mono">
-                  {profile.classCode || `${profile.section} Sem ${profile.effectiveSemester}`}
-                </span>
+                {profile.classCode && <span className="chip-navy font-mono">{profile.classCode}</span>}
                 <span className={sectionBadgeClass(profile.section)}>
                   <SectionIcon section={profile.section} className="h-3.5 w-3.5" />
-                  {profile.section}
+                  {profile.classCode ? profile.section : `${profile.section} department`}
                 </span>
-                <span className="chip-neutral">
-                  {profile.role === "faculty" ? <Icons.Faculty className="h-3.5 w-3.5" /> : <Icons.Student className="h-3.5 w-3.5" />}
-                  {profile.role === "faculty" ? "Faculty" : "Student"}
+                <span className={ROLE_META[profile.role].chip}>
+                  <RoleIcon role={profile.role} />
+                  {ROLE_META[profile.role].label}
                 </span>
               </div>
             </div>
@@ -99,7 +98,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ userId: 
             )}
 
             <dl className="flex flex-wrap gap-x-8 gap-y-2 pt-1 text-sm">
-              {profile.registrationNumber && (
+              {isStudent(profile.role) && profile.registrationNumber && (
                 <div className="flex gap-2">
                   <dt className="text-muted">Reg. no.</dt>
                   <dd className="font-mono font-medium uppercase text-ink">{profile.registrationNumber}</dd>
@@ -111,7 +110,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ userId: 
                   <dd className="font-medium text-ink">{profile.universityEmail || profile.email}</dd>
                 </div>
               )}
-              {profile.admissionYear && (
+              {isStudent(profile.role) && profile.admissionYear && (
                 <div className="flex gap-2">
                   <dt className="text-muted">Admitted</dt>
                   <dd className="font-medium tabular-nums text-ink">{profile.admissionYear}</dd>
@@ -199,6 +198,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ userId: 
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           initialData={{
+            role: profile.role,
             section: profile.section,
             registrationNumber: profile.registrationNumber,
             universityEmail: profile.universityEmail,

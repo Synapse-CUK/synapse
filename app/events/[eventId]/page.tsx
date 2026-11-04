@@ -6,9 +6,11 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Icons } from "@/components/Icons";
+import { isStudent } from "@/convex/lib/roles";
 import { SectionIcon, sectionBadgeClass } from "@/components/sectionUi";
 import EventStatusChip from "@/components/EventStatusChip";
 import { Alert, Avatar, LoadingScreen, SeatMeter, StatusScreen } from "@/components/ui";
+import { errorMessage } from "@/lib/errors";
 
 function JoinRequestChatThread({ teamMemberId }: { teamMemberId: Id<"teamMembers"> }) {
   const messages = useQuery(api.teamMembers.listJoinRequestMessages, { teamMemberId });
@@ -143,7 +145,7 @@ export default function EventWorkspacePage({ params }: { params: Promise<{ event
   // Section & Semester Eligibility Checks
   const isSectionEligible = event.eligibilityFilter === "all" || event.eligibilityFilter === dbUser?.section;
 
-  const userEffectiveSem = dbUser?.effectiveSemester || 1;
+  const userEffectiveSem = dbUser?.effectiveSemester ?? 0;
   const isSemesterEligible =
     !event.eligibleSemesters ||
     event.eligibleSemesters === "all" ||
@@ -162,8 +164,8 @@ export default function EventWorkspacePage({ params }: { params: Promise<{ event
       setFeedback(null);
       await updateEventStatus({ eventId, status });
       setFeedback({ text: `Status updated to ${status.replace("_", " ")}.`, type: "success" });
-    } catch (err: any) {
-      setFeedback({ text: err.message, type: "error" });
+    } catch (err) {
+      setFeedback({ text: errorMessage(err), type: "error" });
     }
   }
 
@@ -174,8 +176,8 @@ export default function EventWorkspacePage({ params }: { params: Promise<{ event
       await requestToJoin({ eventId, role: desiredRole.trim() });
       setFeedback({ text: "Request sent. The host will review it.", type: "success" });
       setDesiredRole("");
-    } catch (err: any) {
-      setFeedback({ text: err.message, type: "error" });
+    } catch (err) {
+      setFeedback({ text: errorMessage(err), type: "error" });
     } finally {
       setIsSubmitting(false);
     }
@@ -188,8 +190,8 @@ export default function EventWorkspacePage({ params }: { params: Promise<{ event
         text: response === "accept" ? "Student accepted." : "Request rejected.",
         type: response === "accept" ? "success" : "error",
       });
-    } catch (err: any) {
-      setFeedback({ text: err.message, type: "error" });
+    } catch (err) {
+      setFeedback({ text: errorMessage(err), type: "error" });
     }
   }
 
@@ -206,8 +208,8 @@ export default function EventWorkspacePage({ params }: { params: Promise<{ event
       setFeedback({ text: "Student assigned.", type: "success" });
       setSelectedAssignStudentId("");
       setAssignRole("");
-    } catch (err: any) {
-      setFeedback({ text: err.message, type: "error" });
+    } catch (err) {
+      setFeedback({ text: errorMessage(err), type: "error" });
     } finally {
       setIsSubmitting(false);
     }
@@ -218,8 +220,8 @@ export default function EventWorkspacePage({ params }: { params: Promise<{ event
       await updateGithubUsername({ teamMemberId, githubUsername: githubInput });
       setEditingGithubMemberId(null);
       setFeedback({ text: "GitHub username saved.", type: "success" });
-    } catch (err: any) {
-      setFeedback({ text: err.message, type: "error" });
+    } catch (err) {
+      setFeedback({ text: errorMessage(err), type: "error" });
     }
   }
 
@@ -418,17 +420,9 @@ export default function EventWorkspacePage({ params }: { params: Promise<{ event
                 Ask to join
               </h2>
               <div className="mt-4">
-                {!isEligible ? (
-                  <Alert tone="warning" title="You aren't eligible for this event">
-                    It is open to{" "}
-                    <strong className="text-ink">
-                      {event.eligibilityFilter === "all" ? "all sections" : event.eligibilityFilter}
-                    </strong>
-                    , {semesterLabel.toLowerCase()}. Your class code is{" "}
-                    <strong className="font-mono text-ink">
-                      {dbUser?.classCode || `${dbUser?.section} Sem ${dbUser?.effectiveSemester}`}
-                    </strong>
-                    .
+                {!isStudent(dbUser?.role) ? (
+                  <Alert tone="info">
+                    Teams are for students. Faculty and coordinators can host their own event instead.
                   </Alert>
                 ) : isPendingMember ? (
                   <div className="space-y-4">
@@ -438,6 +432,20 @@ export default function EventWorkspacePage({ params }: { params: Promise<{ event
                     </Alert>
                     {myMemberRecord && <JoinRequestChatThread teamMemberId={myMemberRecord._id} />}
                   </div>
+                ) : event.status !== "recruiting" ? (
+                  <Alert tone="info">This project isn&apos;t taking new members right now.</Alert>
+                ) : !isEligible ? (
+                  <Alert tone="warning" title="You aren't eligible for this event">
+                    It is open to{" "}
+                    <strong className="text-ink">
+                      {event.eligibilityFilter === "all" ? "all sections" : event.eligibilityFilter}
+                    </strong>
+                    , {semesterLabel.toLowerCase()}. Your class code is{" "}
+                    <strong className="font-mono text-ink">
+                      {dbUser?.classCode ?? dbUser?.section}
+                    </strong>
+                    .
+                  </Alert>
                 ) : isTeamFull ? (
                   <Alert tone="info">This team is full ({event.teamSizeCap} members).</Alert>
                 ) : (
@@ -492,7 +500,7 @@ export default function EventWorkspacePage({ params }: { params: Promise<{ event
                             {req.role}
                             {req.user && (
                               <span className="ml-1.5 font-mono">
-                                {req.user.classCode || `${req.user.section} Sem ${req.user.effectiveSemester}`}
+                                {req.user.classCode ?? req.user.section}
                               </span>
                             )}
                           </p>

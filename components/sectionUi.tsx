@@ -47,3 +47,17 @@ export function SectionIcon({
       return <Icons.Globe className={className} />;
   }
 }
+
+/** Icon for a role, used next to ROLE_META labels. */
+export function RoleIcon({ role, className = "h-3.5 w-3.5" }: { role: string; className?: string }) {
+  switch (role) {
+    case "coordinator":
+      return <Icons.Crown className={className} />;
+    case "faculty":
+      return <Icons.Faculty className={className} />;
+    case "faculty_pending":
+      return <Icons.Hourglass className={className} />;
+    default:
+      return <Icons.Student className={className} />;
+  }
+}

@@ -15,6 +15,7 @@ import type * as events from "../events.js";
 import type * as files from "../files.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_roles from "../lib/roles.js";
 import type * as lib_semester from "../lib/semester.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as teamMembers from "../teamMembers.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   files: typeof files;
   http: typeof http;
   "lib/auth": typeof lib_auth;
+  "lib/roles": typeof lib_roles;
   "lib/semester": typeof lib_semester;
   "lib/validators": typeof lib_validators;
   teamMembers: typeof teamMembers;

@@ -5,6 +5,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Icons } from "@/components/Icons";
 import { Alert, Modal, Spinner } from "@/components/ui";
+import { errorMessage } from "@/lib/errors";
 
 interface PostAchievementModalProps {
   isOpen: boolean;
@@ -56,8 +57,8 @@ export default function PostAchievementModal({ isOpen, onClose }: PostAchievemen
       setDescription("");
       setFile(null);
       onClose();
-    } catch (err: any) {
-      setError(err.message || "Something went wrong.");
+    } catch (err) {
+      setError(errorMessage(err, "Something went wrong."));
     } finally {
       setIsSubmitting(false);
     }

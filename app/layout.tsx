@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, Cormorant_Garamond, JetBrains_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import ConvexClientProvider from "./ConvexClientProvider";
 import OnboardingGuard from "@/components/OnboardingGuard";
 import Navbar from "@/components/Navbar";
@@ -12,12 +13,16 @@ const sans = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-const display = Cormorant_Garamond({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  style: ["normal", "italic"],
+// Cormorant Garamond is self-hosted: Google sometimes serves it from URLs that
+// Turbopack's next/font/google can't parse ("queries have exactly one entry").
+// Variable font, latin subset, weights 500-700. SIL Open Font License.
+const display = localFont({
+  src: "./fonts/CormorantGaramond-Variable-latin.woff2",
+  weight: "500 700",
+  style: "normal",
   variable: "--font-display",
   display: "swap",
+  fallback: ["Georgia", "serif"],
 });
 
 const mono = JetBrains_Mono({

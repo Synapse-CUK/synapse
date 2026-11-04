@@ -297,17 +297,21 @@ describe("private details stay private", () => {
     expect(JSON.stringify(forHost)).not.toContain("@");
   });
 
-  test("the verification queue is faculty only", async () => {
+  test("the verification queue is for faculty and coordinators only", async () => {
     const t = setup();
     await addUser(t, "student1");
+    await addUser(t, "pending1", "faculty_pending");
     await addUser(t, "faculty1", "faculty");
+    await addUser(t, "coord1", "coordinator");
     await as(t, "student1").mutation(api.achievements.createAchievement, {
       title: "Win",
       description: "d",
     });
 
     expect(await as(t, "student1").query(api.achievements.listPending, {})).toEqual([]);
+    expect(await as(t, "pending1").query(api.achievements.listPending, {})).toEqual([]);
     expect(await as(t, "faculty1").query(api.achievements.listPending, {})).toHaveLength(1);
+    expect(await as(t, "coord1").query(api.achievements.listPending, {})).toHaveLength(1);
   });
 });
 
@@ -428,5 +432,164 @@ describe("operator tools", () => {
     expect(second).toBe(first);
     const all = await t.run((ctx) => ctx.db.query("users").collect());
     expect(all).toHaveLength(1);
+  });
+});
+
+describe("coordinators have faculty powers", () => {
+  test("a coordinator can verify an achievement and award XP", async () => {
+    const t = setup();
+    const student = await addUser(t, "student1");
+    await addUser(t, "coord1", "coordinator");
+    const achievementId = await as(t, "student1").mutation(api.achievements.createAchievement, {
+      title: "Win",
+      description: "d",
+    });
+
+    await as(t, "coord1").mutation(api.achievements.updateAchievementStatus, {
+      achievementId,
+      status: "verified",
+    });
+
+    const xp = await t.run(async (ctx) => (await ctx.db.get(student))?.xp);
+    expect(xp).toBe(60);
+  });
+
+  test("events hosted by a coordinator count as faculty events", async () => {
+    const t = setup();
+    await addUser(t, "coord1", "coordinator");
+    const eventId = await as(t, "coord1").mutation(api.events.createEvent, {
+      title: "Hack",
+      description: "d",
+      techStack: [],
+      formationMode: "faculty_assign",
+      eligibilityFilter: "all",
+      teamSizeCap: 4,
+      deadline: Date.now() + 86_400_000,
+    });
+    const event = await t.run(async (ctx) => ctx.db.get(eventId));
+    expect(event?.hostType).toBe("faculty");
+  });
+
+  test("a coordinator can't change their own role", async () => {
+    const t = setup();
+    const id = await addUser(t, "coord1", "coordinator");
+    await expect(
+      as(t, "coord1").mutation(api.coordinator.updateUserRole, { userId: id, role: "student" })
+    ).rejects.toThrow(/own role/i);
+    expect(await roleOf(t, id)).toBe("coordinator");
+  });
+});
+
+describe("onboarding by role", () => {
+  test("faculty don't need a registration number or admission year", async () => {
+    const t = setup();
+    await t.run(async (ctx) =>
+      ctx.db.insert("users", {
+        clerkId: "new1",
+        name: "New user",
+        email: "new1@example.com",
+        section: "IT",
+        role: "student",
+        skills: [],
+        xp: 0,
+        createdAt: Date.now(),
+      })
+    );
+
+    await as(t, "new1").mutation(api.users.completeOnboarding, {
+      name: "Dr. Iyer",
+      section: "CSE",
+      role: "faculty",
+    });
+
+    const me = await as(t, "new1").query(api.users.current, {});
+    expect(me?.role).toBe("faculty_pending");
+    expect(me?.section).toBe("CSE");
+    expect(me?.registrationNumber).toBeUndefined();
+    expect(me?.classCode).toBeNull();
+  });
+
+  test("students still need a registration number", async () => {
+    const t = setup();
+    await addUser(t, "student1");
+    await expect(
+      as(t, "student1").mutation(api.users.completeOnboarding, {
+        name: "Ana",
+        section: "IT",
+        admissionYear: 2024,
+        role: "student",
+      })
+    ).rejects.toThrow(/registration number/i);
+  });
+
+  test("ensureUser creates one student record and is safe to repeat", async () => {
+    const t = setup();
+    const caller = t.withIdentity({ subject: "fresh1", name: "Fresh", email: "fresh1@example.com" });
+    const first = await caller.mutation(api.users.ensureUser, {});
+    const second = await caller.mutation(api.users.ensureUser, {});
+    expect(second).toBe(first);
+    expect(await roleOf(t, first)).toBe("student");
+    const count = await t.run(async (ctx) => (await ctx.db.query("users").collect()).length);
+    expect(count).toBe(1);
+  });
+
+  test("ensureUser never promotes or changes an existing record", async () => {
+    const t = setup();
+    const id = await addUser(t, "coord1", "coordinator");
+    expect(await as(t, "coord1").mutation(api.users.ensureUser, {})).toBe(id);
+    expect(await roleOf(t, id)).toBe("coordinator");
+  });
+});
+
+describe("teams are for students", () => {
+  test("faculty and coordinators can't ask to join a team", async () => {
+    const t = setup();
+    await addUser(t, "host1");
+    await addUser(t, "faculty1", "faculty");
+    const eventId = await as(t, "host1").mutation(api.events.createEvent, {
+      title: "Team",
+      description: "d",
+      techStack: [],
+      formationMode: "student_choice",
+      eligibilityFilter: "all",
+      teamSizeCap: 4,
+      deadline: Date.now() + 86_400_000,
+    });
+    await expect(
+      as(t, "faculty1").mutation(api.teamMembers.requestToJoin, { eventId, role: "Mentor" })
+    ).rejects.toThrow(/only students/i);
+  });
+});
+
+describe("data reset", () => {
+  test("resetAllData refuses to run without ALLOW_DATA_RESET", async () => {
+    const t = setup();
+    await addUser(t, "student1");
+    const previous = process.env.ALLOW_DATA_RESET;
+    delete process.env.ALLOW_DATA_RESET;
+    try {
+      await expect(t.mutation(internal.admin.resetAllData, {})).rejects.toThrow(/ALLOW_DATA_RESET/);
+    } finally {
+      if (previous !== undefined) process.env.ALLOW_DATA_RESET = previous;
+    }
+    const count = await t.run(async (ctx) => (await ctx.db.query("users").collect()).length);
+    expect(count).toBe(1);
+  });
+
+  test("resetAllData empties every table when allowed", async () => {
+    const t = setup();
+    await addUser(t, "student1");
+    await as(t, "student1").mutation(api.achievements.createAchievement, { title: "Win", description: "d" });
+    process.env.ALLOW_DATA_RESET = "true";
+    try {
+      await t.mutation(internal.admin.resetAllData, {});
+    } finally {
+      delete process.env.ALLOW_DATA_RESET;
+    }
+    const left = await t.run(async (ctx) => ({
+      users: (await ctx.db.query("users").collect()).length,
+      achievements: (await ctx.db.query("achievements").collect()).length,
+    }));
+    expect(left).toEqual({ users: 0, achievements: 0 });
   });
 });

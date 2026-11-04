@@ -1,23 +1,21 @@
-import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import { sectionValidator } from "./lib/validators";
+import { ConvexError, v } from "convex/values";
+import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { getCurrentUser } from "./lib/auth";
+import { roleValidator, sectionValidator } from "./lib/validators";
 
 /**
  * Helper function to require coordinator authority on function invocation.
  */
-async function requireCoordinator(ctx: any) {
+async function requireCoordinator(ctx: QueryCtx | MutationCtx) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
-    throw new Error("Unauthenticated call. Please sign in.");
+    throw new ConvexError("Unauthenticated call. Please sign in.");
   }
 
-  const user = await ctx.db
-    .query("users")
-    .withIndex("by_clerkId", (q: any) => q.eq("clerkId", identity.subject))
-    .unique();
+  const user = await getCurrentUser(ctx);
 
   if (!user || user.role !== "coordinator") {
-    throw new Error("Forbidden: Requires coordinator permissions.");
+    throw new ConvexError("Forbidden: Requires coordinator permissions.");
   }
 
   return user;
@@ -50,9 +48,9 @@ export const approveFacultyRequest = mutation({
   handler: async (ctx, args) => {
     await requireCoordinator(ctx);
     const targetUser = await ctx.db.get(args.userId);
-    if (!targetUser) throw new Error("User record not found");
+    if (!targetUser) throw new ConvexError("User record not found");
     if (targetUser.role !== "faculty_pending") {
-      throw new Error("This user has no pending faculty request.");
+      throw new ConvexError("This user has no pending faculty request.");
     }
     await ctx.db.patch(args.userId, { role: "faculty" });
     return { success: true, userId: args.userId, newRole: "faculty" };
@@ -68,9 +66,9 @@ export const rejectFacultyRequest = mutation({
   handler: async (ctx, args) => {
     await requireCoordinator(ctx);
     const targetUser = await ctx.db.get(args.userId);
-    if (!targetUser) throw new Error("User record not found");
+    if (!targetUser) throw new ConvexError("User record not found");
     if (targetUser.role !== "faculty_pending") {
-      throw new Error("This user has no pending faculty request.");
+      throw new ConvexError("This user has no pending faculty request.");
     }
     await ctx.db.patch(args.userId, { role: "student" });
     return { success: true, userId: args.userId, newRole: "student" };
@@ -127,17 +125,16 @@ export const listAllUsers = query({
 export const updateUserRole = mutation({
   args: {
     userId: v.id("users"),
-    role: v.union(
-      v.literal("student"),
-      v.literal("faculty_pending"),
-      v.literal("faculty"),
-      v.literal("coordinator")
-    ),
+    role: roleValidator,
   },
   handler: async (ctx, args) => {
-    await requireCoordinator(ctx);
+    const coordinator = await requireCoordinator(ctx);
+    if (args.userId === coordinator._id) {
+      // Stops the last coordinator locking everyone out by accident.
+      throw new ConvexError("You can't change your own role. Ask another coordinator.");
+    }
     const targetUser = await ctx.db.get(args.userId);
-    if (!targetUser) throw new Error("User not found");
+    if (!targetUser) throw new ConvexError("User not found");
     await ctx.db.patch(args.userId, { role: args.role });
     return { success: true, userId: args.userId, newRole: args.role };
   },
@@ -191,7 +188,7 @@ export const deleteEvent = mutation({
     await requireCoordinator(ctx);
 
     const event = await ctx.db.get(args.eventId);
-    if (!event) throw new Error("Event not found");
+    if (!event) throw new ConvexError("Event not found");
 
     // 1. teamMembers + their joinRequestMessages
     const teamMembers = await ctx.db
@@ -252,7 +249,7 @@ export const forceUpdateEventStatus = mutation({
   handler: async (ctx, args) => {
     await requireCoordinator(ctx);
     const event = await ctx.db.get(args.eventId);
-    if (!event) throw new Error("Event not found");
+    if (!event) throw new ConvexError("Event not found");
     await ctx.db.patch(args.eventId, { status: args.status });
     return { success: true, eventId: args.eventId, newStatus: args.status };
   },
@@ -305,7 +302,7 @@ export const deleteAchievement = mutation({
   handler: async (ctx, args) => {
     await requireCoordinator(ctx);
     const achievement = await ctx.db.get(args.achievementId);
-    if (!achievement) throw new Error("Achievement not found");
+    if (!achievement) throw new ConvexError("Achievement not found");
     await ctx.db.delete(args.achievementId);
     return { success: true, deletedId: args.achievementId };
   },

@@ -7,7 +7,8 @@ import { api } from "@/convex/_generated/api";
 import AchievementCard, { AchievementItem } from "@/components/AchievementCard";
 import PostAchievementModal from "@/components/PostAchievementModal";
 import { Icons } from "@/components/Icons";
-import { SectionIcon, sectionBadgeClass } from "@/components/sectionUi";
+import { RoleIcon, SectionIcon, sectionBadgeClass } from "@/components/sectionUi";
+import { ROLE_META } from "@/convex/lib/roles";
 import { Avatar, EmptyState } from "@/components/ui";
 
 function FeedSkeleton() {
@@ -59,7 +60,7 @@ export default function FeedPage() {
                     <h2 className="text-lg font-semibold leading-tight text-ink">{dbUser.name}</h2>
                     <span className={`${sectionBadgeClass(dbUser.section)} font-mono`}>
                       <SectionIcon section={dbUser.section} className="h-3.5 w-3.5" />
-                      {dbUser.classCode || `${dbUser.section} Year ${dbUser.year}`}
+                      {dbUser.classCode ?? `${dbUser.section} dept.`}
                     </span>
                     {dbUser.bio && <p className="line-clamp-2 text-sm leading-relaxed text-muted">{dbUser.bio}</p>}
                   </div>
@@ -75,12 +76,8 @@ export default function FeedPage() {
                     <div className="px-4 py-3">
                       <dt className="label-caps">Role</dt>
                       <dd className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-ink">
-                        {dbUser.role === "faculty" ? (
-                          <Icons.Faculty className="h-4 w-4 text-royal" />
-                        ) : (
-                          <Icons.Student className="h-4 w-4 text-royal" />
-                        )}
-                        {dbUser.role === "faculty" ? "Faculty" : "Student"}
+                        <RoleIcon role={dbUser.role} className="h-4 w-4 text-royal" />
+                        {ROLE_META[dbUser.role].label}
                       </dd>
                     </div>
                   </dl>

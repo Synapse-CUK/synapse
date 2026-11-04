@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { hasFacultyAccess } from "@/convex/lib/roles";
 import { Icons } from "./Icons";
 import { SectionIcon, sectionBadgeClass } from "./sectionUi";
 import { BrandMark } from "./ui";
@@ -16,7 +17,7 @@ export default function Navbar() {
   const navLinks = [
     { href: "/feed", label: "Feed" },
     { href: "/events", label: "Projects" },
-    ...(dbUser?.role === "faculty" ? [{ href: "/faculty/dashboard", label: "Faculty" }] : []),
+    ...(hasFacultyAccess(dbUser?.role) ? [{ href: "/faculty/dashboard", label: "Faculty" }] : []),
     ...(dbUser?.role === "coordinator" ? [{ href: "/coordinator/dashboard", label: "Coordinator" }] : []),
   ];
 
@@ -81,7 +82,7 @@ export default function Navbar() {
                 )}
                 <span className={`${sectionBadgeClass(dbUser.section)} font-mono`}>
                   <SectionIcon section={dbUser.section} className="h-3.5 w-3.5" />
-                  {dbUser.classCode || `${dbUser.section} Sem ${dbUser.effectiveSemester || 1}`}
+                  {dbUser.classCode ?? `${dbUser.section} dept.`}
                 </span>
               </div>
             )}
@@ -96,7 +97,7 @@ export default function Navbar() {
               </Link>
             )}
             <div className="ml-1 flex h-8 w-8 items-center justify-center">
-              <UserButton afterSignOutUrl="/" />
+              <UserButton afterSignOutUrl="/sign-in" />
             </div>
           </SignedIn>
 

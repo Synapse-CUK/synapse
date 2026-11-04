@@ -1,7 +1,8 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { getCurrentUser } from "./lib/auth";
+import { hasFacultyAccess } from "./lib/roles";
 
 /**
  * Add the proof URL and a public author summary to an achievement.
@@ -45,12 +46,12 @@ export const createAchievement = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthenticated call to createAchievement");
+      throw new ConvexError("Unauthenticated call to createAchievement");
     }
 
     const user = await getCurrentUser(ctx);
     if (!user) {
-      throw new Error("User record not found in Convex database");
+      throw new ConvexError("User record not found in Convex database");
     }
 
     const achievementId = await ctx.db.insert("achievements", {
@@ -119,7 +120,7 @@ export const listByUser = query({
 });
 
 /**
- * List all pending achievements awaiting faculty verification. Faculty only.
+ * List all pending achievements awaiting verification. Faculty and coordinators only.
  * Returns an empty list for everyone else, because the dashboard page runs this
  * query before its own role check.
  */
@@ -127,7 +128,7 @@ export const listPending = query({
   args: {},
   handler: async (ctx) => {
     const viewer = await getCurrentUser(ctx);
-    if (viewer?.role !== "faculty") {
+    if (!hasFacultyAccess(viewer?.role)) {
       return [];
     }
 
@@ -142,7 +143,7 @@ export const listPending = query({
 });
 
 /**
- * Faculty mutation to approve (verify) or reject an achievement.
+ * Faculty or coordinator mutation to approve (verify) or reject an achievement.
  * Each achievement can only be decided once, and never by its own author.
  */
 export const updateAchievementStatus = mutation({
@@ -153,30 +154,30 @@ export const updateAchievementStatus = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthenticated call");
+      throw new ConvexError("Unauthenticated call");
     }
 
-    const faculty = await getCurrentUser(ctx);
-    if (!faculty || faculty.role !== "faculty") {
-      throw new Error("Only faculty members can verify student achievements.");
+    const reviewer = await getCurrentUser(ctx);
+    if (!reviewer || !hasFacultyAccess(reviewer.role)) {
+      throw new ConvexError("Only faculty and coordinators can verify achievements.");
     }
 
     const achievement = await ctx.db.get(args.achievementId);
     if (!achievement) {
-      throw new Error("Achievement not found");
+      throw new ConvexError("Achievement not found");
     }
 
     if (achievement.status !== "pending") {
-      throw new Error("This achievement has already been reviewed.");
+      throw new ConvexError("This achievement has already been reviewed.");
     }
 
-    if (achievement.userId === faculty._id) {
-      throw new Error("You can't review your own achievement.");
+    if (achievement.userId === reviewer._id) {
+      throw new ConvexError("You can't review your own achievement.");
     }
 
     await ctx.db.patch(args.achievementId, {
       status: args.status,
-      verifiedBy: faculty._id,
+      verifiedBy: reviewer._id,
     });
 
     // If verified, award +50 XP bonus to student!

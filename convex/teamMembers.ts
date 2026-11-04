@@ -1,7 +1,8 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getCurrentUser } from "./lib/auth";
-import { getEffectiveSemester, getClassCode } from "./lib/semester";
+import { getAcademicInfo, getEffectiveSemester } from "./lib/semester";
+import { hasFacultyAccess, isStudent } from "./lib/roles";
 
 /**
  * Student request to join an event with a desired role.
@@ -15,7 +16,7 @@ export const requestToJoin = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthenticated call to requestToJoin");
+      throw new ConvexError("Unauthenticated call to requestToJoin");
     }
 
     const user = await ctx.db
@@ -24,20 +25,24 @@ export const requestToJoin = mutation({
       .unique();
 
     if (!user) {
-      throw new Error("User record not found");
+      throw new ConvexError("User record not found");
+    }
+
+    if (!isStudent(user.role)) {
+      throw new ConvexError("Only students can join teams.");
     }
 
     const event = await ctx.db.get(args.eventId);
     if (!event) {
-      throw new Error("Event not found");
+      throw new ConvexError("Event not found");
     }
 
     if (event.status !== "recruiting") {
-      throw new Error("This project is not currently recruiting members.");
+      throw new ConvexError("This project is not currently recruiting members.");
     }
 
     if (event.formationMode !== "student_choice") {
-      throw new Error("This event uses Faculty Assignment mode. Students cannot self-request to join.");
+      throw new ConvexError("This event uses Faculty Assignment mode. Students cannot self-request to join.");
     }
 
     // Section eligibility check
@@ -45,7 +50,7 @@ export const requestToJoin = mutation({
       event.eligibilityFilter !== "all" &&
       event.eligibilityFilter !== user.section
     ) {
-      throw new Error(
+      throw new ConvexError(
         `Section restricted: This event is reserved for ${event.eligibilityFilter} section students.`
       );
     }
@@ -58,7 +63,7 @@ export const requestToJoin = mutation({
       Array.isArray(event.eligibleSemesters) &&
       !event.eligibleSemesters.includes(effectiveSem)
     ) {
-      throw new Error(
+      throw new ConvexError(
         `Semester restricted: This event requires Semester ${event.eligibleSemesters.join(", ")}, but your current semester is ${effectiveSem}.`
       );
     }
@@ -71,13 +76,13 @@ export const requestToJoin = mutation({
 
     const acceptedCount = existingMembers.filter((m) => m.status === "accepted").length;
     if (acceptedCount >= event.teamSizeCap) {
-      throw new Error("Team size capacity reached.");
+      throw new ConvexError("Team size capacity reached.");
     }
 
     // Check if already requested or accepted
     const userMemberRecord = existingMembers.find((m) => m.userId === user._id);
     if (userMemberRecord) {
-      throw new Error("You have already requested or joined this team.");
+      throw new ConvexError("You have already requested or joined this team.");
     }
 
     return await ctx.db.insert("teamMembers", {
@@ -100,7 +105,7 @@ export const respondToJoinRequest = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthenticated call");
+      throw new ConvexError("Unauthenticated call");
     }
 
     const user = await ctx.db
@@ -110,16 +115,16 @@ export const respondToJoinRequest = mutation({
 
     const memberDoc = await ctx.db.get(args.teamMemberId);
     if (!memberDoc) {
-      throw new Error("Join request record not found");
+      throw new ConvexError("Join request record not found");
     }
 
     const event = await ctx.db.get(memberDoc.eventId);
     if (!event) {
-      throw new Error("Associated event not found");
+      throw new ConvexError("Associated event not found");
     }
 
     if (!user || user._id !== event.hostId) {
-      throw new Error("Only the event host can manage join requests.");
+      throw new ConvexError("Only the event host can manage join requests.");
     }
 
     if (args.response === "accept") {
@@ -131,7 +136,7 @@ export const respondToJoinRequest = mutation({
 
       const acceptedCount = existingMembers.filter((m) => m.status === "accepted").length;
       if (acceptedCount >= event.teamSizeCap) {
-        throw new Error("Cannot accept: Team size capacity reached.");
+        throw new ConvexError("Cannot accept: Team size capacity reached.");
       }
 
       await ctx.db.patch(args.teamMemberId, {
@@ -155,7 +160,7 @@ export const sendJoinRequestMessage = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthenticated call");
+      throw new ConvexError("Unauthenticated call");
     }
 
     const user = await ctx.db
@@ -164,17 +169,17 @@ export const sendJoinRequestMessage = mutation({
       .unique();
 
     if (!user) {
-      throw new Error("User record not found");
+      throw new ConvexError("User record not found");
     }
 
     const memberDoc = await ctx.db.get(args.teamMemberId);
     if (!memberDoc) {
-      throw new Error("Join request record not found");
+      throw new ConvexError("Join request record not found");
     }
 
     const event = await ctx.db.get(memberDoc.eventId);
     if (!event) {
-      throw new Error("Associated event not found");
+      throw new ConvexError("Associated event not found");
     }
 
     // Access check: caller must be host or applicant
@@ -182,11 +187,11 @@ export const sendJoinRequestMessage = mutation({
     const isApplicant = user._id === memberDoc.userId;
 
     if (!isHost && !isApplicant) {
-      throw new Error("Only the host and the applicant can chat on this request.");
+      throw new ConvexError("Only the host and the applicant can chat on this request.");
     }
 
     if (!args.message.trim()) {
-      throw new Error("Message cannot be empty.");
+      throw new ConvexError("Message cannot be empty.");
     }
 
     return await ctx.db.insert("joinRequestMessages", {
@@ -245,8 +250,7 @@ export const listJoinRequestMessages = query({
     return await Promise.all(
       messages.map(async (msg) => {
         const sender = await ctx.db.get(msg.senderId);
-        const effectiveSem = sender ? getEffectiveSemester(sender) : 1;
-        const classCode = sender ? getClassCode(effectiveSem, sender.section) : "";
+        const classCode = sender ? getAcademicInfo(sender).classCode : null;
 
         return {
           ...msg,
@@ -278,7 +282,7 @@ export const assignStudent = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthenticated call");
+      throw new ConvexError("Unauthenticated call");
     }
 
     const facultyUser = await ctx.db
@@ -288,20 +292,23 @@ export const assignStudent = mutation({
 
     const event = await ctx.db.get(args.eventId);
     if (!event) {
-      throw new Error("Event not found");
+      throw new ConvexError("Event not found");
     }
 
     if (!facultyUser || facultyUser._id !== event.hostId) {
-      throw new Error("Only the event host can assign students.");
+      throw new ConvexError("Only the event host can assign students.");
     }
 
     if (event.formationMode !== "faculty_assign") {
-      throw new Error("Direct assignment is only permitted in Faculty Assignment mode.");
+      throw new ConvexError("Direct assignment is only permitted in Faculty Assignment mode.");
     }
 
     const studentToAssign = await ctx.db.get(args.userId);
     if (!studentToAssign) {
-      throw new Error("Target student not found");
+      throw new ConvexError("Target student not found");
+    }
+    if (!isStudent(studentToAssign.role)) {
+      throw new ConvexError("Only students can be assigned to a team.");
     }
 
     // Section eligibility check
@@ -309,7 +316,7 @@ export const assignStudent = mutation({
       event.eligibilityFilter !== "all" &&
       event.eligibilityFilter !== studentToAssign.section
     ) {
-      throw new Error(
+      throw new ConvexError(
         `Section mismatch: Student belongs to ${studentToAssign.section}, but event requires ${event.eligibilityFilter}.`
       );
     }
@@ -322,7 +329,7 @@ export const assignStudent = mutation({
       Array.isArray(event.eligibleSemesters) &&
       !event.eligibleSemesters.includes(effectiveSem)
     ) {
-      throw new Error(
+      throw new ConvexError(
         `Semester mismatch: Student is in Semester ${effectiveSem}, but event requires Semester ${event.eligibleSemesters.join(", ")}.`
       );
     }
@@ -334,12 +341,12 @@ export const assignStudent = mutation({
 
     const acceptedCount = existingMembers.filter((m) => m.status === "accepted").length;
     if (acceptedCount >= event.teamSizeCap) {
-      throw new Error("Team size capacity reached.");
+      throw new ConvexError("Team size capacity reached.");
     }
 
     const isAlreadyMember = existingMembers.some((m) => m.userId === args.userId);
     if (isAlreadyMember) {
-      throw new Error("Student is already assigned to this team.");
+      throw new ConvexError("Student is already assigned to this team.");
     }
 
     return await ctx.db.insert("teamMembers", {
@@ -374,7 +381,7 @@ export const listEligibleStudents = query({
     if (viewer._id !== event.hostId && !isCoordinator) {
       return [];
     }
-    const canSeeRegistration = isCoordinator || viewer.role === "faculty";
+    const canSeeRegistration = hasFacultyAccess(viewer.role);
 
     const existingMembers = await ctx.db
       .query("teamMembers")
@@ -477,7 +484,7 @@ export const listMyTeams = query({
                 _id: host._id,
                 name: host.name,
                 role: host.role,
-                classCode: getClassCode(getEffectiveSemester(host), host.section),
+                classCode: getAcademicInfo(host).classCode,
               }
             : null,
           userRole: myMembership?.role || (event.hostId === user._id ? "Host Lead" : "Member"),
@@ -501,7 +508,7 @@ export const updateGithubUsername = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthenticated call");
+      throw new ConvexError("Unauthenticated call");
     }
 
     const user = await ctx.db
@@ -511,11 +518,11 @@ export const updateGithubUsername = mutation({
 
     const memberDoc = await ctx.db.get(args.teamMemberId);
     if (!memberDoc) {
-      throw new Error("Team member record not found");
+      throw new ConvexError("Team member record not found");
     }
 
     if (!user || user._id !== memberDoc.userId) {
-      throw new Error("You can only edit your own GitHub username.");
+      throw new ConvexError("You can only edit your own GitHub username.");
     }
 
     await ctx.db.patch(args.teamMemberId, {

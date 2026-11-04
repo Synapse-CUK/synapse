@@ -17,7 +17,7 @@ export default function PendingFacultyBanner() {
         <Icons.Hourglass className="h-4 w-4 shrink-0" />
         <p>
           <span className="font-semibold">Faculty access is waiting for coordinator approval.</span>{" "}
-          <span className="text-body">You can use every student feature until then.</span>
+          <span className="text-body">You can browse the feed and projects until then.</span>
         </p>
       </div>
     </div>

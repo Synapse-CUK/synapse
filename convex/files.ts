@@ -1,3 +1,4 @@
+import { ConvexError } from "convex/values";
 import { mutation } from "./_generated/server";
 
 /**
@@ -8,7 +9,7 @@ export const generateUploadUrl = mutation({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthenticated call to generateUploadUrl");
+      throw new ConvexError("Unauthenticated call to generateUploadUrl");
     }
 
     return await ctx.storage.generateUploadUrl();

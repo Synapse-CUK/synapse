@@ -7,6 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { Icons } from "@/components/Icons";
 import { Alert, Modal, Spinner } from "@/components/ui";
 import type { Section } from "@/convex/lib/validators";
+import { errorMessage } from "@/lib/errors";
 
 interface CreateEventModalProps {
   isOpen: boolean;
@@ -76,9 +77,9 @@ export default function CreateEventModal({ isOpen, onClose }: CreateEventModalPr
 
       onClose();
       router.push(`/events/${eventId}`);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error creating event:", err);
-      setError(err.message || "Failed to create event workspace.");
+      setError(errorMessage(err, "Failed to create event workspace."));
     } finally {
       setIsSubmitting(false);
     }

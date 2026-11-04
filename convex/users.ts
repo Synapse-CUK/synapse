@@ -1,13 +1,14 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { getCurrentUser } from "./lib/auth";
-import { getEffectiveSemester, getClassCode } from "./lib/semester";
+import { getAcademicInfo } from "./lib/semester";
+import { isStudent } from "./lib/roles";
 import { sectionValidator } from "./lib/validators";
 
 /**
  * Get current authenticated user details from Convex DB using Clerk auth context.
- * Includes calculated `effectiveSemester` and `classCode`.
+ * Includes calculated `effectiveSemester` and `classCode` (null for non-students).
  */
 export const current = query({
   args: {},
@@ -17,8 +18,7 @@ export const current = query({
       return null;
     }
 
-    const effectiveSemester = getEffectiveSemester(user);
-    const classCode = getClassCode(effectiveSemester, user.section);
+    const { effectiveSemester, classCode } = getAcademicInfo(user);
 
     return {
       ...user,
@@ -67,6 +67,39 @@ export const syncUser = internalMutation({
 });
 
 /**
+ * Make sure the signed-in user has a Convex record. The Clerk webhook normally
+ * creates it, but it can lag behind the first page load or be missing on a
+ * deployment the webhook doesn't point at. New records are always students;
+ * the identity comes from the auth token, never from arguments. Safe to call
+ * repeatedly.
+ */
+export const ensureUser = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Unauthenticated call to ensureUser");
+    }
+
+    const existing = await getCurrentUser(ctx);
+    if (existing) {
+      return existing._id;
+    }
+
+    return await ctx.db.insert("users", {
+      clerkId: identity.subject,
+      name: identity.name || identity.givenName || "New user",
+      email: identity.email || "",
+      section: "IT",
+      role: "student",
+      skills: [],
+      xp: 0,
+      createdAt: Date.now(),
+    });
+  },
+});
+
+/**
  * Decide a user's role during onboarding. Users may only ask for student or
  * faculty access, faculty needs coordinator approval, and an approved faculty
  * or coordinator role is never changed here.
@@ -84,56 +117,87 @@ function resolveOnboardingRole(
 }
 
 /**
- * Complete academic onboarding step for a user.
- * If user selects "faculty", role is set to "faculty_pending" awaiting coordinator approval.
+ * Complete onboarding.
+ *
+ * Students give a registration number and admission year (they set the
+ * semester and class code). Faculty give only a name and department (section);
+ * choosing faculty sets the role to "faculty_pending" until a coordinator
+ * approves. Approved faculty and coordinators keep their role.
  */
 export const completeOnboarding = mutation({
   args: {
     name: v.string(),
-    registrationNumber: v.string(),
+    registrationNumber: v.optional(v.string()),
     universityEmail: v.optional(v.string()),
     section: sectionValidator,
-    admissionYear: v.number(),
+    admissionYear: v.optional(v.number()),
     role: v.optional(v.union(v.literal("student"), v.literal("faculty"))),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthenticated call to completeOnboarding");
+      throw new ConvexError("Unauthenticated call to completeOnboarding");
+    }
+
+    const name = args.name.trim();
+    if (!name) {
+      throw new ConvexError("Please enter your full name.");
     }
 
     const user = await getCurrentUser(ctx);
     const targetRole = resolveOnboardingRole(user?.role, args.role);
 
-    if (!user) {
-      // Create user if the Clerk webhook has not created them yet
-      const userId = await ctx.db.insert("users", {
-        clerkId: identity.subject,
-        name: args.name,
-        email: identity.email || "",
-        registrationNumber: args.registrationNumber.trim(),
-        universityEmail: args.universityEmail?.trim(),
-        section: args.section,
+    // Student-only details. Cleared for everyone else so a faculty member
+    // never carries a semester or class code.
+    let studentDetails: {
+      registrationNumber?: string;
+      admissionYear?: number;
+      semesterOverride?: number;
+    } = { registrationNumber: undefined, admissionYear: undefined, semesterOverride: undefined };
+
+    if (isStudent(targetRole)) {
+      const registrationNumber = args.registrationNumber?.trim();
+      if (!registrationNumber) {
+        throw new ConvexError("Please enter your registration number.");
+      }
+      const currentYear = new Date().getFullYear();
+      if (
+        args.admissionYear === undefined ||
+        !Number.isInteger(args.admissionYear) ||
+        args.admissionYear < 2000 ||
+        args.admissionYear > currentYear + 1
+      ) {
+        throw new ConvexError("Please choose your admission year.");
+      }
+      studentDetails = {
+        registrationNumber,
         admissionYear: args.admissionYear,
-        role: targetRole,
-        requestedRole: args.role,
+        semesterOverride: user?.semesterOverride,
+      };
+    }
+
+    const fields = {
+      name,
+      universityEmail: args.universityEmail?.trim() || undefined,
+      section: args.section,
+      role: targetRole,
+      requestedRole: args.role ?? user?.requestedRole,
+      ...studentDetails,
+    };
+
+    if (!user) {
+      // The Clerk webhook hasn't created the record yet.
+      return await ctx.db.insert("users", {
+        ...fields,
+        clerkId: identity.subject,
+        email: identity.email || "",
         skills: [],
         xp: 0,
         createdAt: Date.now(),
       });
-      return userId;
     }
 
-    await ctx.db.patch(user._id, {
-      name: args.name,
-      registrationNumber: args.registrationNumber.trim(),
-      universityEmail: args.universityEmail?.trim(),
-      section: args.section,
-      admissionYear: args.admissionYear,
-      role: targetRole,
-      requestedRole: args.role ?? user.requestedRole,
-    });
-
+    await ctx.db.patch(user._id, fields);
     return user._id;
   },
 });
@@ -154,7 +218,7 @@ export const updateProfile = mutation({
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
-      throw new Error("User profile not found");
+      throw new ConvexError("User profile not found");
     }
 
     if (
@@ -163,15 +227,25 @@ export const updateProfile = mutation({
         args.semesterOverride < 1 ||
         args.semesterOverride > 8)
     ) {
-      throw new Error("Semester must be a whole number from 1 to 8.");
+      throw new ConvexError("Semester must be a whole number from 1 to 8.");
     }
 
-    const updates: Record<string, any> = {};
+    const updates: Partial<Doc<"users">> = {};
     if (args.section !== undefined) updates.section = args.section;
-    if (args.registrationNumber !== undefined) updates.registrationNumber = args.registrationNumber;
-    if (args.universityEmail !== undefined) updates.universityEmail = args.universityEmail;
-    if (args.admissionYear !== undefined) updates.admissionYear = args.admissionYear;
-    if (args.semesterOverride !== undefined) updates.semesterOverride = args.semesterOverride;
+    if (args.universityEmail !== undefined) updates.universityEmail = args.universityEmail.trim() || undefined;
+
+    // Registration number, admission year and semester only apply to students.
+    if (isStudent(user.role)) {
+      if (args.registrationNumber !== undefined) {
+        const registrationNumber = args.registrationNumber.trim();
+        if (!registrationNumber) {
+          throw new ConvexError("Registration number can't be empty.");
+        }
+        updates.registrationNumber = registrationNumber;
+      }
+      if (args.admissionYear !== undefined) updates.admissionYear = args.admissionYear;
+      if (args.semesterOverride !== undefined) updates.semesterOverride = args.semesterOverride;
+    }
     if (args.bio !== undefined) updates.bio = args.bio;
     if (args.skills !== undefined) updates.skills = args.skills;
 
@@ -206,8 +280,7 @@ export const getUserProfile = query({
     const achievementCount = achievements.length;
     const verifiedCount = achievements.filter((a) => a.status === "verified").length;
 
-    const effectiveSemester = getEffectiveSemester(user);
-    const classCode = getClassCode(effectiveSemester, user.section);
+    const { effectiveSemester, classCode } = getAcademicInfo(user);
 
     const canSeePrivate = viewer._id === user._id || viewer.role === "coordinator";
 

@@ -1,3 +1,4 @@
+import { isStudent, type Role } from "./roles";
 import type { Section } from "./validators";
 
 /**
@@ -73,4 +74,22 @@ export function getEffectiveSemester(user: {
     return Math.min(Math.max((user.year * 2) - 1, 1), 8);
   }
   return 1;
+}
+
+/**
+ * Semester and class code for a user, or nulls for anyone who isn't a student.
+ * Faculty and coordinators have a department but no semester or class code.
+ */
+export function getAcademicInfo(user: {
+  role: Role;
+  section: Section;
+  admissionYear?: number;
+  semesterOverride?: number;
+  year?: number;
+}): { effectiveSemester: number | null; classCode: string | null } {
+  if (!isStudent(user.role)) {
+    return { effectiveSemester: null, classCode: null };
+  }
+  const effectiveSemester = getEffectiveSemester(user);
+  return { effectiveSemester, classCode: getClassCode(effectiveSemester, user.section) };
 }

@@ -6,8 +6,10 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Icons } from "@/components/Icons";
+import { hasFacultyAccess } from "@/convex/lib/roles";
 import { SectionIcon, sectionBadgeClass } from "@/components/sectionUi";
 import { Alert, Avatar, EmptyState, LoadingScreen, PageHeader, Spinner, StatusScreen } from "@/components/ui";
+import { errorMessage } from "@/lib/errors";
 
 export default function FacultyDashboardPage() {
   const dbUser = useQuery(api.users.current);
@@ -38,7 +40,7 @@ export default function FacultyDashboardPage() {
     );
   }
 
-  if (!dbUser || dbUser.role !== "faculty") {
+  if (!dbUser || !hasFacultyAccess(dbUser.role)) {
     return (
       <StatusScreen
         icon={<Icons.Shield className="h-7 w-7" />}
@@ -49,7 +51,7 @@ export default function FacultyDashboardPage() {
           </Link>
         }
       >
-        This dashboard is for verified faculty members.
+        This dashboard is for approved faculty and coordinators.
       </StatusScreen>
     );
   }
@@ -64,9 +66,9 @@ export default function FacultyDashboardPage() {
         text: status === "verified" ? "Verified. The student received 50 XP." : "Submission rejected.",
         type: status === "verified" ? "success" : "error",
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Verification error:", err);
-      setFeedbackMsg({ id: achievementId, text: err.message || "Failed to update status.", type: "error" });
+      setFeedbackMsg({ id: achievementId, text: errorMessage(err, "Failed to update status."), type: "error" });
     } finally {
       setProcessingId(null);
     }

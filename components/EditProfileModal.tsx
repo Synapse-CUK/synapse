@@ -7,11 +7,14 @@ import { Icons } from "@/components/Icons";
 import { SectionIcon, sectionSelectedClass } from "@/components/sectionUi";
 import { Alert, Modal, Spinner } from "@/components/ui";
 import { SECTIONS, type Section } from "@/convex/lib/validators";
+import { isStudent, type Role } from "@/convex/lib/roles";
+import { errorMessage } from "@/lib/errors";
 
 interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialData: {
+    role: Role;
     section: Section;
     registrationNumber?: string;
     universityEmail?: string;
@@ -36,6 +39,7 @@ export default function EditProfileModal({ isOpen, onClose, initialData }: EditP
   const [error, setError] = useState("");
 
   const updateProfile = useMutation(api.users.updateProfile);
+  const student = isStudent(initialData.role);
 
   // The parent builds initialData on every render, and live profile updates
   // re-render it. Reset the form only when the dialog opens, so a background
@@ -69,18 +73,27 @@ export default function EditProfileModal({ isOpen, onClose, initialData }: EditP
 
       const semOverrideNum = semesterOverride.trim() ? Number(semesterOverride) : undefined;
 
+      if (student && !registrationNumber.trim()) {
+        setError("Registration number can't be empty.");
+        return;
+      }
+
       await updateProfile({
         section,
-        registrationNumber: registrationNumber.trim() || undefined,
-        universityEmail: universityEmail.trim() || undefined,
-        admissionYear: Number(admissionYear),
-        semesterOverride: semOverrideNum,
+        universityEmail: universityEmail.trim(),
         bio: bio.trim(),
         skills,
+        ...(student
+          ? {
+              registrationNumber: registrationNumber.trim(),
+              admissionYear: Number(admissionYear),
+              semesterOverride: semOverrideNum,
+            }
+          : {}),
       });
       onClose();
-    } catch (err: any) {
-      setError(err.message || "Failed to update profile.");
+    } catch (err) {
+      setError(errorMessage(err, "Failed to update profile."));
     } finally {
       setIsSubmitting(false);
     }
@@ -91,13 +104,14 @@ export default function EditProfileModal({ isOpen, onClose, initialData }: EditP
       open={isOpen}
       onClose={onClose}
       title="Edit profile"
-      description="Academic details, bio and skills."
+      description={student ? "Academic details, bio and skills." : "Department, bio and skills."}
       icon={<Icons.Edit className="h-5 w-5" />}
     >
       <form onSubmit={handleSubmit} className="space-y-5 px-6 py-6">
         {error && <Alert tone="error">{error}</Alert>}
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className={`grid gap-4 ${student ? "sm:grid-cols-2" : ""}`}>
+          {student && (
           <div>
             <label htmlFor="edit-reg" className="field-label">
               Registration no.
@@ -111,6 +125,7 @@ export default function EditProfileModal({ isOpen, onClose, initialData }: EditP
               className="input-field font-mono uppercase"
             />
           </div>
+          )}
           <div>
             <label htmlFor="edit-email" className="field-label">
               University email
@@ -128,7 +143,7 @@ export default function EditProfileModal({ isOpen, onClose, initialData }: EditP
 
         <div role="group" aria-labelledby="edit-section-label">
           <span id="edit-section-label" className="field-label">
-            Section
+            {student ? "Section" : "Department"}
           </span>
           <div className="grid grid-cols-3 gap-2">
             {SECTIONS.map((sec) => (
@@ -148,6 +163,7 @@ export default function EditProfileModal({ isOpen, onClose, initialData }: EditP
           </div>
         </div>
 
+        {student && (
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="edit-year" className="field-label">
@@ -159,7 +175,7 @@ export default function EditProfileModal({ isOpen, onClose, initialData }: EditP
               onChange={(e) => setAdmissionYear(Number(e.target.value))}
               className="input-field"
             >
-              {[2026, 2025, 2024, 2023, 2022, 2021, 2020].map((y) => (
+              {Array.from({ length: 7 }, (_, i) => new Date().getFullYear() - i).map((y) => (
                 <option key={y} value={y}>
                   {y}
                 </option>
@@ -183,6 +199,7 @@ export default function EditProfileModal({ isOpen, onClose, initialData }: EditP
             <p className="field-hint mt-1.5">Only for a late entry or a repeated semester.</p>
           </div>
         </div>
+        )}
 
         <div>
           <label htmlFor="edit-bio" className="field-label">

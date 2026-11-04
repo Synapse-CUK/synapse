@@ -20,7 +20,7 @@ Not in this sprint: tags on events or profiles, tag suggestions from the descrip
 
 | Decision | Proposal | Decided |
 | --- | --- | --- |
-| The generic fields | AI & ML, Web, Mobile, IoT & Embedded, Cloud & DevOps, Data, Security, Design & UX, Competitive Programming, Research, Other | |
+| The generic fields | AI & ML, Web, Mobile, IoT & Embedded, Cloud & DevOps, Data, Security, Design & UX, Competitive Programming, Research, Other | **Yes, as proposed** (Amal, 4 Nov). The IDs are fixed in Data model below |
 | Can students create tags, or only pick? | Students create; coordinators clean up | |
 | Most tags per achievement | 5 | |
 | Can tags change after posting? | Only by the author, only while pending. After verification the tags are what the reviewer approved | |
@@ -35,14 +35,22 @@ Not in this sprint: tags on events or profiles, tag suggestions from the descrip
 
 ## Data model
 
-Fields live in a new `convex/lib/fields.ts`, in the same style as `SECTIONS` in `convex/lib/validators.ts`. The frontend imports it too.
+Fields live in a new `convex/lib/fields.ts`, in the same style as `SECTIONS` in `convex/lib/validators.ts`. The frontend imports it too. **Use exactly these IDs:** they are stored in the database, so renaming one later needs a data migration. Labels can change freely. Show fields in this order; **Other** is always last.
 
 ```ts
 // convex/lib/fields.ts
 export const FIELDS = [
   { id: "ai_ml", label: "AI & ML" },
   { id: "web", label: "Web" },
-  // ...the list Amal decides
+  { id: "mobile", label: "Mobile" },
+  { id: "iot_embedded", label: "IoT & Embedded" },
+  { id: "cloud_devops", label: "Cloud & DevOps" },
+  { id: "data", label: "Data" },
+  { id: "security", label: "Security" },
+  { id: "design_ux", label: "Design & UX" },
+  { id: "competitive_programming", label: "Competitive Programming" },
+  { id: "research", label: "Research" },
+  { id: "other", label: "Other" },
 ] as const;
 export type Field = (typeof FIELDS)[number]["id"];
 export const fieldValidator = v.union(/* v.literal for each id */);

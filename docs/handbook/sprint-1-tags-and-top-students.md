@@ -38,7 +38,8 @@ Owner: write your name. Done: tick it when the pull request is merged, not when 
 
 | Done | Task | Owner | Linear |
 | --- | --- | --- | --- |
-| [ ] | Decide the field list (see Spec: Tags, "Decisions for Amal") | Amal | S0.2 |
+| [x] | Decide the field list: **the proposed 11 fields** (decided 4 Nov) | Amal | S0.2 |
+| [ ] | Decide tag rules: can students create tags, and the most per achievement | Amal | S0.5 |
 | [ ] | Decide what counts for Top students and who can see it | Amal | S0.3 |
 | [ ] | Merge the roles fix to `main` | Amal | S0.4 |
 | [ ] | T1.1 Fields list and the `tags` and `achievementTags` tables | Team A | T1.1 |

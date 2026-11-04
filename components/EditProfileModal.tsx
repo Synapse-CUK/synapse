@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Icons } from "@/components/Icons";
 import { SectionIcon, sectionSelectedClass } from "@/components/sectionUi";
+import { Alert, Modal, Spinner } from "@/components/ui";
 import { SECTIONS, type Section } from "@/convex/lib/validators";
 
 interface EditProfileModalProps {
@@ -27,7 +28,7 @@ export default function EditProfileModal({ isOpen, onClose, initialData }: EditP
   const [universityEmail, setUniversityEmail] = useState<string>(initialData.universityEmail || "");
   const [admissionYear, setAdmissionYear] = useState<number>(initialData.admissionYear || 2024);
   const [semesterOverride, setSemesterOverride] = useState<string>(
-    initialData.semesterOverride ? String(initialData.semesterOverride) : ""
+    initialData.semesterOverride ? String(initialData.semesterOverride) : "",
   );
   const [bio, setBio] = useState<string>(initialData.bio || "");
   const [skillsInput, setSkillsInput] = useState<string>((initialData.skills || []).join(", "));
@@ -36,19 +37,24 @@ export default function EditProfileModal({ isOpen, onClose, initialData }: EditP
 
   const updateProfile = useMutation(api.users.updateProfile);
 
-  useEffect(() => {
-    if (isOpen) {
-      setSection(initialData.section || "IT");
-      setRegistrationNumber(initialData.registrationNumber || "");
-      setUniversityEmail(initialData.universityEmail || "");
-      setAdmissionYear(initialData.admissionYear || 2024);
-      setSemesterOverride(initialData.semesterOverride ? String(initialData.semesterOverride) : "");
-      setBio(initialData.bio || "");
-      setSkillsInput((initialData.skills || []).join(", "));
-    }
-  }, [isOpen, initialData]);
+  // The parent builds initialData on every render, and live profile updates
+  // re-render it. Reset the form only when the dialog opens, so a background
+  // update never wipes what the user is typing.
+  const initialDataRef = useRef(initialData);
+  initialDataRef.current = initialData;
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) return;
+    const data = initialDataRef.current;
+    setSection(data.section || "IT");
+    setRegistrationNumber(data.registrationNumber || "");
+    setUniversityEmail(data.universityEmail || "");
+    setAdmissionYear(data.admissionYear || 2024);
+    setSemesterOverride(data.semesterOverride ? String(data.semesterOverride) : "");
+    setBio(data.bio || "");
+    setSkillsInput((data.skills || []).join(", "));
+    setError("");
+  }, [isOpen]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -81,160 +87,147 @@ export default function EditProfileModal({ isOpen, onClose, initialData }: EditP
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-        {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center">
-              <Icons.Edit className="w-5 h-5 text-teal-600" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Edit Academic Profile</h2>
-              <p className="text-xs text-slate-400">Update registration details, semester, bio, and skills</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 transition"
-          >
-            <Icons.X className="w-4 h-4" />
-          </button>
-        </div>
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title="Edit profile"
+      description="Academic details, bio and skills."
+      icon={<Icons.Edit className="h-5 w-5" />}
+    >
+      <form onSubmit={handleSubmit} className="space-y-5 px-6 py-6">
+        {error && <Alert tone="error">{error}</Alert>}
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-          {error && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium">
-              {error}
-            </div>
-          )}
-
-          {/* Registration & University Email */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-700">Reg / Roll No.</label>
-              <input
-                type="text"
-                placeholder="2024BTIT042"
-                value={registrationNumber}
-                onChange={(e) => setRegistrationNumber(e.target.value)}
-                className="input-field uppercase font-mono text-xs"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-700">University Email</label>
-              <input
-                type="email"
-                placeholder="student@univ.edu"
-                value={universityEmail}
-                onChange={(e) => setUniversityEmail(e.target.value)}
-                className="input-field text-xs"
-              />
-            </div>
-          </div>
-
-          {/* Section & Admission Year */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-700">Section</label>
-              <div className="grid grid-cols-3 gap-2">
-                {SECTIONS.map((sec) => (
-                  <button
-                    key={sec}
-                    type="button"
-                    onClick={() => setSection(sec)}
-                    className={`flex items-center justify-center gap-1 py-2 rounded-xl border-2 text-xs font-bold transition ${
-                      section === sec
-                        ? sectionSelectedClass(sec)
-                        : "border-slate-200 text-slate-500 hover:border-slate-300"
-                    }`}
-                  >
-                    <SectionIcon section={sec} className="w-3.5 h-3.5" />
-                    {sec}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-700">Admission Year</label>
-              <select
-                value={admissionYear}
-                onChange={(e) => setAdmissionYear(Number(e.target.value))}
-                className="input-field text-xs"
-              >
-                {[2026, 2025, 2024, 2023, 2022, 2021, 2020].map((y) => (
-                  <option key={y} value={y}>
-                    {y} Admission
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Manual Semester Override */}
-          <div className="space-y-1 p-3 rounded-xl bg-amber-50/50 border border-amber-200">
-            <label className="block text-xs font-bold text-amber-900">
-              Semester Override <span className="font-normal text-amber-700">(Optional for backlogs/late entry)</span>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="edit-reg" className="field-label">
+              Registration no.
             </label>
             <input
+              id="edit-reg"
+              type="text"
+              placeholder="2024BTIT042"
+              value={registrationNumber}
+              onChange={(e) => setRegistrationNumber(e.target.value)}
+              className="input-field font-mono uppercase"
+            />
+          </div>
+          <div>
+            <label htmlFor="edit-email" className="field-label">
+              University email
+            </label>
+            <input
+              id="edit-email"
+              type="email"
+              placeholder="you@college.edu"
+              value={universityEmail}
+              onChange={(e) => setUniversityEmail(e.target.value)}
+              className="input-field"
+            />
+          </div>
+        </div>
+
+        <div role="group" aria-labelledby="edit-section-label">
+          <span id="edit-section-label" className="field-label">
+            Section
+          </span>
+          <div className="grid grid-cols-3 gap-2">
+            {SECTIONS.map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                aria-pressed={section === sec}
+                onClick={() => setSection(sec)}
+                className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition ${
+                  section === sec ? sectionSelectedClass(sec) : "border-line text-muted hover:border-line-strong hover:text-ink"
+                }`}
+              >
+                <SectionIcon section={sec} className="h-4 w-4" />
+                {sec}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="edit-year" className="field-label">
+              Admission year
+            </label>
+            <select
+              id="edit-year"
+              value={admissionYear}
+              onChange={(e) => setAdmissionYear(Number(e.target.value))}
+              className="input-field"
+            >
+              {[2026, 2025, 2024, 2023, 2022, 2021, 2020].map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="edit-sem" className="field-label">
+              Semester override <span className="field-hint ml-1">Optional</span>
+            </label>
+            <input
+              id="edit-sem"
               type="number"
               min={1}
               max={8}
-              placeholder="Leave empty for auto-calculated semester"
+              placeholder="Worked out automatically"
               value={semesterOverride}
               onChange={(e) => setSemesterOverride(e.target.value)}
-              className="input-field text-xs bg-white"
+              className="input-field"
             />
+            <p className="field-hint mt-1.5">Only for a late entry or a repeated semester.</p>
           </div>
+        </div>
 
-          {/* Bio */}
-          <div className="space-y-1">
-            <label className="block text-xs font-bold text-slate-700">Bio</label>
-            <textarea
-              rows={3}
-              placeholder="Tell the campus community about your focus area or projects..."
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              className="input-field resize-none text-xs"
-            />
-          </div>
+        <div>
+          <label htmlFor="edit-bio" className="field-label">
+            Bio
+          </label>
+          <textarea
+            id="edit-bio"
+            rows={3}
+            placeholder="What you work on, and what you'd like to build next."
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            className="input-field resize-none"
+          />
+        </div>
 
-          {/* Skills */}
-          <div className="space-y-1">
-            <label className="block text-xs font-bold text-slate-700">
-              Skills <span className="text-slate-400 font-normal ml-1">comma separated</span>
-            </label>
-            <input
-              type="text"
-              placeholder="React, Python, Next.js, Raspberry Pi, TensorFlow..."
-              value={skillsInput}
-              onChange={(e) => setSkillsInput(e.target.value)}
-              className="input-field text-xs"
-            />
-          </div>
+        <div>
+          <label htmlFor="edit-skills" className="field-label">
+            Skills <span className="field-hint ml-1">Separate with commas</span>
+          </label>
+          <input
+            id="edit-skills"
+            type="text"
+            placeholder="React, Python, Raspberry Pi, TensorFlow"
+            value={skillsInput}
+            onChange={(e) => setSkillsInput(e.target.value)}
+            className="input-field"
+          />
+        </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-4 py-2 rounded-xl border-2 border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl gradient-teal text-white text-xs font-bold shadow-sm hover:opacity-90 transition disabled:opacity-50"
-            >
-              {isSubmitting ? "Saving..." : "Save Academic Profile"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex items-center justify-end gap-3 border-t border-line pt-5">
+          <button type="button" onClick={onClose} disabled={isSubmitting} className="btn-ghost">
+            Cancel
+          </button>
+          <button type="submit" disabled={isSubmitting} className="btn-primary">
+            {isSubmitting ? (
+              <>
+                <Spinner />
+                Saving
+              </>
+            ) : (
+              "Save profile"
+            )}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

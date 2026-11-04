@@ -8,216 +8,164 @@ import AchievementCard, { AchievementItem } from "@/components/AchievementCard";
 import PostAchievementModal from "@/components/PostAchievementModal";
 import { Icons } from "@/components/Icons";
 import { SectionIcon, sectionBadgeClass } from "@/components/sectionUi";
+import { Avatar, EmptyState } from "@/components/ui";
+
+function FeedSkeleton() {
+  return (
+    <div className="space-y-4" aria-hidden>
+      {[1, 2, 3].map((n) => (
+        <div key={n} className="panel space-y-4 p-6">
+          <div className="flex items-center gap-3">
+            <div className="skeleton h-10 w-10 rounded-xl" />
+            <div className="space-y-2">
+              <div className="skeleton h-4 w-36" />
+              <div className="skeleton h-3 w-24" />
+            </div>
+          </div>
+          <div className="skeleton h-5 w-3/4" />
+          <div className="skeleton h-14 w-full rounded-xl" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function FeedPage() {
   const dbUser = useQuery(api.users.current);
   const achievements = useQuery(api.achievements.listFeed);
 
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const openComposer = () => setIsPostModalOpen(true);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Left Sidebar: User Profile Card */}
-        <aside className="lg:col-span-1 space-y-4">
-          <div className="social-card card-shadow overflow-hidden">
-            {/* Mini Banner */}
-            <div className="h-20 gradient-banner" />
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-12">
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
+        {/* Profile summary */}
+        <aside className="space-y-4 lg:sticky lg:top-24 lg:col-span-4">
+          <div className="panel overflow-hidden">
+            <div className="relative h-20 bg-band">
+              <div
+                aria-hidden
+                className="absolute inset-0 bg-[radial-gradient(80%_120%_at_100%_0%,rgb(var(--gold)/0.35),transparent_60%)]"
+              />
+            </div>
 
-            <div className="px-5 pb-5 -mt-8">
+            <div className="-mt-8 px-5 pb-5">
               {dbUser ? (
                 <div className="space-y-4">
-                  {/* Avatar */}
-                  <div className="w-16 h-16 rounded-2xl gradient-teal border-4 border-white flex items-center justify-center text-white font-black text-xl shadow-lg">
-                    {dbUser.name
-                      .split(" ")
-                      .map((n: string) => n[0])
-                      .join("")
-                      .substring(0, 2)
-                      .toUpperCase()}
-                  </div>
+                  <Avatar name={dbUser.name} size="lg" className="ring-4 ring-surface" />
 
                   <div className="space-y-2">
-                    <h2 className="font-bold text-lg text-slate-900 leading-tight">{dbUser.name}</h2>
-
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold ${sectionBadgeClass(dbUser.section)}`}>
-                      <SectionIcon section={dbUser.section} className="w-3.5 h-3.5" />
-                      {dbUser.section} Section · Year {dbUser.year}
+                    <h2 className="text-lg font-semibold leading-tight text-ink">{dbUser.name}</h2>
+                    <span className={`${sectionBadgeClass(dbUser.section)} font-mono`}>
+                      <SectionIcon section={dbUser.section} className="h-3.5 w-3.5" />
+                      {dbUser.classCode || `${dbUser.section} Year ${dbUser.year}`}
                     </span>
-
-                    {dbUser.bio && (
-                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                        {dbUser.bio}
-                      </p>
-                    )}
+                    {dbUser.bio && <p className="line-clamp-2 text-sm leading-relaxed text-muted">{dbUser.bio}</p>}
                   </div>
 
-                  {/* XP & Stats */}
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
-                    <div className="text-center py-3 rounded-xl bg-amber-50 border border-amber-100">
-                      <Icons.Lightning className="w-5 h-5 text-amber-500 mx-auto mb-1" />
-                      <p className="text-base font-black text-amber-600">{dbUser.xp || 0}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">XP</p>
+                  <dl className="grid grid-cols-2 divide-x divide-line rounded-xl border border-line">
+                    <div className="px-4 py-3">
+                      <dt className="label-caps">XP</dt>
+                      <dd className="mt-1 flex items-center gap-1.5 text-xl font-semibold tabular-nums text-ink">
+                        <Icons.Lightning className="h-4 w-4 text-gold" />
+                        {dbUser.xp || 0}
+                      </dd>
                     </div>
-
-                    <div className="text-center py-3 rounded-xl bg-slate-50 border border-slate-100">
-                      {dbUser.role === "faculty"
-                        ? <Icons.Faculty className="w-5 h-5 text-purple-500 mx-auto mb-1" />
-                        : <Icons.Student className="w-5 h-5 text-teal-500 mx-auto mb-1" />
-                      }
-                      <p className="text-xs font-bold text-slate-700 capitalize">
-                        {dbUser.role === "faculty" ? "Faculty" : "Student"}
-                      </p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Role</p>
-                    </div>
-                  </div>
-
-                  {/* Skills */}
-                  {dbUser.skills && dbUser.skills.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Skills</p>
-                      <div className="flex flex-wrap gap-1">
-                        {dbUser.skills.slice(0, 6).map((skill: string, idx: number) => (
-                          <span
-                            key={idx}
-                            className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 border border-indigo-100 text-indigo-700"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                        {dbUser.skills.length > 6 && (
-                          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-500">
-                            +{dbUser.skills.length - 6}
-                          </span>
+                    <div className="px-4 py-3">
+                      <dt className="label-caps">Role</dt>
+                      <dd className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-ink">
+                        {dbUser.role === "faculty" ? (
+                          <Icons.Faculty className="h-4 w-4 text-royal" />
+                        ) : (
+                          <Icons.Student className="h-4 w-4 text-royal" />
                         )}
-                      </div>
+                        {dbUser.role === "faculty" ? "Faculty" : "Student"}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  {dbUser.skills && dbUser.skills.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {dbUser.skills.slice(0, 6).map((skill: string, idx: number) => (
+                        <span key={idx} className="chip-neutral">
+                          {skill}
+                        </span>
+                      ))}
+                      {dbUser.skills.length > 6 && (
+                        <span className="chip-neutral text-muted">+{dbUser.skills.length - 6}</span>
+                      )}
                     </div>
                   )}
 
-                  <Link
-                    href={`/profile/${dbUser._id}`}
-                    className="block w-full py-2.5 text-center rounded-xl border-2 border-slate-200 text-slate-700 text-sm font-bold hover:border-teal-500 hover:text-teal-700 transition"
-                  >
-                    View Full Profile
+                  <Link href={`/profile/${dbUser._id}`} className="btn-secondary w-full">
+                    View profile
                   </Link>
                 </div>
               ) : (
-                <div className="py-6 text-center space-y-2">
-                  <div className="w-6 h-6 mx-auto border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-xs text-slate-400">Loading profile...</p>
+                <div className="space-y-3 pt-2" aria-hidden>
+                  <div className="skeleton h-14 w-14 rounded-xl" />
+                  <div className="skeleton h-5 w-40" />
+                  <div className="skeleton h-4 w-24 rounded-full" />
+                  <div className="skeleton h-16 w-full rounded-xl" />
                 </div>
               )}
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div className="social-card card-shadow p-5 space-y-2">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Explore</p>
-            <Link href="/events" className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition group">
-              <div className="w-9 h-9 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center">
-                <Icons.Rocket className="w-5 h-5 text-teal-600" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-800">Hackathons</p>
-                <p className="text-xs text-slate-400">Browse & join events</p>
-              </div>
-              <Icons.ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 ml-auto transition" />
-            </Link>
-          </div>
+          <Link href="/events" className="panel group flex items-center gap-4 p-4 transition hover:border-line-strong">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-gold/30 bg-gold-tint text-gold-ink">
+              <Icons.Rocket className="h-5 w-5" />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold text-ink">Projects and hackathons</span>
+              <span className="block text-xs text-muted">Find a team or host one</span>
+            </span>
+            <Icons.ChevronRight className="ml-auto h-4 w-4 text-muted transition group-hover:translate-x-0.5 group-hover:text-ink" />
+          </Link>
         </aside>
 
-        {/* Main Feed */}
-        <main className="lg:col-span-2 space-y-5">
-          {/* Post Achievement Prompt */}
-          <div className="social-card card-shadow p-5">
+        {/* Feed */}
+        <main className="space-y-6 lg:col-span-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h1 className="display text-4xl md:text-5xl">Campus feed</h1>
+              <p className="mt-2 text-[15px] text-muted">Achievements from the CSE, IT and IoT sections.</p>
+            </div>
+          </div>
+
+          {/* Composer */}
+          <div className="panel p-4">
             <div className="flex items-center gap-3">
-              {dbUser && (
-                <div className="w-11 h-11 rounded-xl gradient-teal flex items-center justify-center text-white font-black text-sm shrink-0">
-                  {dbUser.name
-                    .split(" ")
-                    .map((n: string) => n[0])
-                    .join("")
-                    .substring(0, 2)
-                    .toUpperCase()}
-                </div>
-              )}
+              {dbUser && <Avatar name={dbUser.name} />}
               <button
-                onClick={() => setIsPostModalOpen(true)}
-                className="flex-1 text-left px-4 py-3 rounded-xl border-2 border-slate-200 text-slate-400 text-sm hover:border-teal-400 hover:bg-teal-50/30 transition cursor-pointer"
+                onClick={openComposer}
+                className="flex h-11 flex-1 items-center rounded-xl border border-line bg-sunken/50 px-4 text-left text-[15px] text-muted transition hover:border-line-strong hover:bg-sunken"
               >
-                Share an achievement, certificate, or project milestone...
+                Share an achievement or certificate
               </button>
-            </div>
-
-            <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-100">
-              <button
-                onClick={() => setIsPostModalOpen(true)}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition"
-              >
-                <Icons.Trophy className="w-5 h-5 text-amber-500" />
-                Achievement
-              </button>
-              <button
-                onClick={() => setIsPostModalOpen(true)}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition"
-              >
-                <Icons.Paperclip className="w-5 h-5 text-blue-500" />
-                Certificate
-              </button>
-              <button
-                onClick={() => setIsPostModalOpen(true)}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition"
-              >
-                <Icons.Sparkles className="w-5 h-5 text-purple-500" />
-                Milestone
+              <button onClick={openComposer} className="btn-primary hidden sm:inline-flex">
+                <Icons.Plus className="h-4 w-4" />
+                Post
               </button>
             </div>
           </div>
 
-          {/* Feed Stream Header */}
-          <div className="flex items-center gap-2 px-1">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <h1 className="text-lg font-bold text-slate-800">Live Feed</h1>
-            <span className="text-sm text-slate-400">·</span>
-            <span className="text-sm text-slate-400">CSE, IT & IoT Achievements</span>
-          </div>
-
-          {/* Feed List */}
           {achievements === undefined ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((n) => (
-                <div key={n} className="social-card p-6 animate-pulse space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 bg-slate-100 rounded-xl" />
-                    <div className="space-y-2">
-                      <div className="w-32 h-4 bg-slate-100 rounded-lg" />
-                      <div className="w-20 h-3 bg-slate-50 rounded" />
-                    </div>
-                  </div>
-                  <div className="w-3/4 h-5 bg-slate-100 rounded-lg" />
-                  <div className="w-full h-16 bg-slate-50 rounded-xl" />
-                </div>
-              ))}
-            </div>
+            <FeedSkeleton />
           ) : achievements.length === 0 ? (
-            <div className="social-card p-16 text-center space-y-5">
-              <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-teal-50 to-indigo-50 border border-slate-100 flex items-center justify-center">
-                <Icons.Sparkles className="w-10 h-10 text-indigo-400" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-slate-800">Nothing here yet</h3>
-                <p className="text-slate-400 text-sm max-w-sm mx-auto mt-1">
-                  Be the first to share an achievement, hackathon win, or project milestone!
-                </p>
-              </div>
-              <button
-                onClick={() => setIsPostModalOpen(true)}
-                className="inline-flex items-center gap-2 px-6 py-3 gradient-teal text-white font-bold rounded-xl text-sm shadow-sm hover:opacity-90 transition"
-              >
-                <Icons.Plus className="w-5 h-5" />
-                Post First Achievement
-              </button>
-            </div>
+            <EmptyState
+              icon={<Icons.Trophy className="h-6 w-6" />}
+              title="Nothing here yet"
+              action={
+                <button onClick={openComposer} className="btn-primary">
+                  <Icons.Plus className="h-4 w-4" />
+                  Post the first achievement
+                </button>
+              }
+            >
+              Share a hackathon result, a certificate or a project milestone to start the feed.
+            </EmptyState>
           ) : (
             <div className="space-y-4">
               {achievements.map((item) => (
@@ -228,11 +176,7 @@ export default function FeedPage() {
         </main>
       </div>
 
-      {/* Post Modal */}
-      <PostAchievementModal
-        isOpen={isPostModalOpen}
-        onClose={() => setIsPostModalOpen(false)}
-      />
+      <PostAchievementModal isOpen={isPostModalOpen} onClose={() => setIsPostModalOpen(false)} />
     </div>
   );
 }

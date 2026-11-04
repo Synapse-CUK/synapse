@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { Icons } from "@/components/Icons";
+import { SectionIcon, sectionBadgeClass } from "@/components/sectionUi";
+import { Alert, Avatar, EmptyState, LoadingScreen, PageHeader, Spinner, StatusScreen } from "@/components/ui";
 
 export default function FacultyDashboardPage() {
   const dbUser = useQuery(api.users.current);
@@ -15,65 +18,39 @@ export default function FacultyDashboardPage() {
   const [feedbackMsg, setFeedbackMsg] = useState<{ id: string; text: string; type: "success" | "error" } | null>(null);
 
   if (dbUser === undefined) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center text-stone-500 font-mono text-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-          <span>Verifying faculty security token...</span>
-        </div>
-      </div>
-    );
+    return <LoadingScreen label="Checking faculty access" />;
   }
 
-  // Specific state for pending faculty users
   if (dbUser && dbUser.role === "faculty_pending") {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-20 text-center space-y-4">
-        <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-2xl font-bold">
-          ⏳
-        </div>
-        <h1 className="text-2xl font-extrabold text-zinc-900 tracking-tight">
-          Faculty Access Pending Approval
-        </h1>
-        <p className="text-stone-600 text-sm max-w-md mx-auto leading-relaxed">
-          Your faculty registration request is currently under review by a department coordinator. You will gain full faculty access — including this dashboard, achievement verification, and official event hosting — once approved.
-        </p>
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-mono font-bold">
-          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-          STATUS: PENDING_COORDINATOR_APPROVAL
-        </div>
-        <div className="pt-2">
-          <Link
-            href="/feed"
-            className="inline-block px-6 py-3 bg-teal-600 hover:bg-teal-500 rounded-xl text-white font-bold text-sm shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-600"
-          >
-            Return to Community Feed
+      <StatusScreen
+        icon={<Icons.Hourglass className="h-7 w-7" />}
+        title="Waiting for approval"
+        action={
+          <Link href="/feed" className="btn-primary">
+            Back to feed
           </Link>
-        </div>
-      </div>
+        }
+      >
+        A department coordinator is reviewing your faculty request. Once approved you&apos;ll get this dashboard,
+        achievement verification and official event hosting.
+      </StatusScreen>
     );
   }
 
-  // Access check fallback if user is not faculty
   if (!dbUser || dbUser.role !== "faculty") {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-20 text-center space-y-4">
-        <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 text-2xl font-bold">
-          🛡️
-        </div>
-        <h1 className="text-2xl font-extrabold text-zinc-900 tracking-tight">
-          Access Restricted to Faculty
-        </h1>
-        <p className="text-stone-600 text-sm max-w-md mx-auto">
-          The Faculty Management Dashboard is reserved exclusively for verified academic supervisors and faculty members.
-        </p>
-        <Link
-          href="/feed"
-          className="inline-block px-6 py-3 bg-teal-600 hover:bg-teal-500 rounded-xl text-white font-bold text-sm shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-600"
-        >
-          Return to Community Feed
-        </Link>
-      </div>
+      <StatusScreen
+        icon={<Icons.Shield className="h-7 w-7" />}
+        title="Faculty only"
+        action={
+          <Link href="/feed" className="btn-primary">
+            Back to feed
+          </Link>
+        }
+      >
+        This dashboard is for verified faculty members.
+      </StatusScreen>
     );
   }
 
@@ -84,217 +61,156 @@ export default function FacultyDashboardPage() {
       await updateAchievementStatus({ achievementId, status });
       setFeedbackMsg({
         id: achievementId,
-        text: status === "verified" ? "Achievement verified (+50 XP granted)!" : "Achievement rejected.",
+        text: status === "verified" ? "Verified. The student received 50 XP." : "Submission rejected.",
         type: status === "verified" ? "success" : "error",
       });
     } catch (err: any) {
       console.error("Verification error:", err);
-      setFeedbackMsg({
-        id: achievementId,
-        text: err.message || "Failed to update status.",
-        type: "error",
-      });
+      setFeedbackMsg({ id: achievementId, text: err.message || "Failed to update status.", type: "error" });
     } finally {
       setProcessingId(null);
     }
   }
 
+  const queueCount = pendingAchievements?.length ?? 0;
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
-      {/* Header Banner */}
-      <div className="bg-white border border-stone-200/80 rounded-2xl p-6 shadow-2xs relative overflow-hidden">
-        <div className="absolute -top-12 -right-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="mx-auto max-w-7xl space-y-10 px-4 py-8 sm:px-6 lg:py-12">
+      <PageHeader
+        title="Faculty dashboard"
+        description="Review student achievements and supervise hackathon teams."
+        actions={
+          <Link href="/events" className="btn-primary btn-lg">
+            <Icons.Plus className="h-4 w-4" />
+            Host an event
+          </Link>
+        }
+      />
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1.5 font-mono text-xs font-bold text-indigo-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse" />
-              <span>ACADEMIC_SUPERVISOR // MANAGEMENT_PORTAL</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">
-              Faculty Management Dashboard
-            </h1>
-            <p className="text-stone-500 text-sm max-w-2xl mt-1 leading-relaxed font-sans">
-              Verify student achievement submissions, award bonus XP, broadcast announcements, and supervise hackathon teams.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            <Link
-              href="/events"
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-sm shadow-sm transition flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
-            >
-              + Launch Hackathon Event
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Grid Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Verification Stream (2 Columns) */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-extrabold text-zinc-900 tracking-tight flex items-center gap-2">
-              <span>🔬 Verification Queue</span>
-              {pendingAchievements && pendingAchievements.length > 0 && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                  {pendingAchievements.length} PENDING
-                </span>
-              )}
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3">
+        <section className="space-y-4 lg:col-span-2" aria-labelledby="queue-heading">
+          <div className="flex items-center gap-3">
+            <h2 id="queue-heading" className="display text-3xl">
+              Verification queue
             </h2>
+            {queueCount > 0 && <span className="chip-gold tabular-nums">{queueCount} waiting</span>}
           </div>
 
           {pendingAchievements === undefined ? (
-            <div className="space-y-4">
+            <div className="space-y-4" aria-hidden>
               {[1, 2].map((n) => (
-                <div
-                  key={n}
-                  className="bg-white border border-stone-200/80 rounded-2xl p-6 animate-pulse space-y-3"
-                >
-                  <div className="w-1/3 h-5 bg-stone-100 rounded" />
-                  <div className="w-full h-12 bg-stone-100/60 rounded" />
+                <div key={n} className="panel space-y-3 p-6">
+                  <div className="skeleton h-4 w-1/3" />
+                  <div className="skeleton h-5 w-2/3" />
+                  <div className="skeleton h-12 w-full" />
                 </div>
               ))}
             </div>
           ) : pendingAchievements.length === 0 ? (
-            <div className="bg-white border border-stone-200/80 rounded-2xl p-12 text-center space-y-3 shadow-2xs">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 text-2xl font-bold">
-                ✓
-              </div>
-              <h3 className="text-lg font-extrabold text-zinc-900">
-                Verification Queue Clear
-              </h3>
-              <p className="text-stone-500 text-sm max-w-md mx-auto font-sans">
-                All student achievement submissions have been reviewed and verified.
-              </p>
-            </div>
+            <EmptyState icon={<Icons.Check className="h-6 w-6" />} title="All caught up">
+              Every submission has been reviewed. New posts will appear here.
+            </EmptyState>
           ) : (
             <div className="space-y-4">
-              {pendingAchievements.map((item) => (
-                <article
-                  key={item._id}
-                  className="bg-white border border-stone-200/80 rounded-2xl p-6 shadow-2xs hover:shadow-md transition-all"
-                >
-                  {/* Header */}
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className="font-bold text-zinc-900 text-base">
-                          {item.author?.name || "Student"}
-                        </span>
-                        {item.author && (
-                          <span
-                            className={`px-2.5 py-0.5 rounded-lg font-mono text-xs font-bold border ${
-                              item.author.section === "IT"
-                                ? "bg-indigo-50 border-indigo-200 text-indigo-700"
-                                : "bg-amber-50 border-amber-200 text-amber-700"
-                            }`}
-                          >
-                            {item.author.section === "IT" ? "💻 IT" : "📡 IoT"} · Yr {item.author.year}
-                          </span>
-                        )}
+              {pendingAchievements.map((item) => {
+                const busy = processingId === item._id;
+                return (
+                  <article key={item._id} className="panel p-6">
+                    <header className="flex flex-wrap items-center gap-3">
+                      <Avatar name={item.author?.name} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-ink">{item.author?.name || "Student"}</p>
+                        <p className="text-xs text-muted">
+                          Submitted{" "}
+                          {new Date(item.createdAt).toLocaleString(undefined, {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
                       </div>
-                      <p className="text-xs font-mono text-stone-500">
-                        Submitted: {new Date(item.createdAt).toLocaleString()}
-                      </p>
-                    </div>
+                      {item.author?.section && (
+                        <span className={sectionBadgeClass(item.author.section)}>
+                          <SectionIcon section={item.author.section} className="h-3 w-3" />
+                          {item.author.section} Year {item.author.year}
+                        </span>
+                      )}
+                    </header>
 
-                    <span className="px-2.5 py-1 rounded-lg font-mono text-xs font-bold bg-amber-50 border border-amber-200 text-amber-800">
-                      ⏳ PENDING_VERIFICATION
-                    </span>
-                  </div>
+                    <h3 className="mt-5 text-lg font-semibold leading-snug text-ink">{item.title}</h3>
+                    <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-body">{item.description}</p>
 
-                  {/* Body */}
-                  <h4 className="text-lg font-extrabold text-zinc-900 mb-1.5 leading-snug">
-                    {item.title}
-                  </h4>
-                  <p className="text-zinc-700 text-sm whitespace-pre-wrap leading-relaxed mb-4 font-sans">
-                    {item.description}
-                  </p>
-
-                  {/* Proof Attachment */}
-                  {item.proofUrl && (
-                    <div className="mb-4">
+                    {item.proofUrl ? (
                       <a
                         href={item.proofUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 p-3 bg-stone-50 border border-stone-200 hover:border-indigo-500/60 rounded-xl text-xs font-mono font-semibold text-indigo-700 hover:underline transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                        className="mt-5 inline-flex items-center gap-2 rounded-xl border border-line bg-sunken/50 px-4 py-2.5 text-sm font-semibold text-royal transition hover:border-royal/40"
                       >
-                        📎 View Student Proof File / Certificate
+                        <Icons.Certificate className="h-4 w-4" />
+                        Open proof
+                        <Icons.ArrowUpRight className="h-3.5 w-3.5" />
                       </a>
+                    ) : (
+                      <p className="mt-5 text-sm text-muted">No proof attached.</p>
+                    )}
+
+                    {feedbackMsg?.id === item._id && (
+                      <Alert tone={feedbackMsg.type === "success" ? "success" : "error"} className="mt-5">
+                        {feedbackMsg.text}
+                      </Alert>
+                    )}
+
+                    <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-line pt-5">
+                      <button
+                        onClick={() => handleVerify(item._id, "verified")}
+                        disabled={busy}
+                        className="btn-success"
+                      >
+                        {busy ? <Spinner /> : <Icons.Verified className="h-4 w-4" />}
+                        Verify and award 50 XP
+                      </button>
+                      <button onClick={() => handleVerify(item._id, "rejected")} disabled={busy} className="btn-danger">
+                        Reject
+                      </button>
                     </div>
-                  )}
-
-                  {/* Feedback Msg */}
-                  {feedbackMsg?.id === item._id && (
-                    <div
-                      className={`p-3 mb-4 rounded-xl font-mono text-xs font-bold border ${
-                        feedbackMsg.type === "success"
-                          ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                          : "bg-rose-50 border-rose-200 text-rose-800"
-                      }`}
-                    >
-                      {feedbackMsg.text}
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-3 pt-3 border-t border-stone-100">
-                    <button
-                      onClick={() => handleVerify(item._id, "verified")}
-                      disabled={processingId === item._id}
-                      className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition disabled:opacity-50 flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-                    >
-                      {processingId === item._id ? "Processing..." : "✓ Approve & Award +50 XP"}
-                    </button>
-
-                    <button
-                      onClick={() => handleVerify(item._id, "rejected")}
-                      disabled={processingId === item._id}
-                      className="px-5 py-2.5 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 font-bold text-xs transition disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-600"
-                    >
-                      Reject Submission
-                    </button>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Sidebar Controls (1 Column) */}
-        <div className="space-y-6">
-          <div className="bg-white border border-stone-200/80 rounded-2xl p-6 shadow-2xs space-y-4">
-            <h3 className="text-base font-extrabold text-zinc-900 tracking-tight flex items-center gap-2">
-              🛠️ Faculty Tools & Quick Actions
-            </h3>
-            <p className="text-stone-500 text-xs leading-relaxed font-sans">
-              As a faculty member, your verifications grant students bonus XP on their public profile leaderboard.
+        <aside className="space-y-4 lg:sticky lg:top-24">
+          <section className="panel p-6">
+            <h2 className="font-semibold text-ink">How XP works</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              Your decisions add XP to a student&apos;s public profile.
             </p>
-
-            <div className="space-y-2 pt-2 border-t border-stone-100 font-mono text-xs">
-              <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/80 flex items-center justify-between">
-                <span className="text-stone-600 font-semibold">VERIFICATION BONUS:</span>
-                <span className="font-extrabold text-amber-600">+50 XP</span>
+            <dl className="mt-5 divide-y divide-line rounded-xl border border-line">
+              <div className="flex items-center justify-between px-4 py-3">
+                <dt className="text-sm text-body">Posting an achievement</dt>
+                <dd className="chip-neutral tabular-nums">+10 XP</dd>
               </div>
-              <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/80 flex items-center justify-between">
-                <span className="text-stone-600 font-semibold">SUBMISSION XP:</span>
-                <span className="font-extrabold text-indigo-600">+10 XP</span>
+              <div className="flex items-center justify-between px-4 py-3">
+                <dt className="text-sm text-body">Verified by faculty</dt>
+                <dd className="chip-gold tabular-nums">+50 XP</dd>
               </div>
-            </div>
+            </dl>
+          </section>
 
-            <div className="pt-2 space-y-2">
-              <Link
-                href="/events"
-                className="block w-full py-3 px-4 text-center rounded-xl bg-stone-100 hover:bg-stone-200/80 border border-stone-200 text-zinc-900 text-xs font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
-              >
-                Browse All Hackathon Teams
-              </Link>
-            </div>
-          </div>
-        </div>
+          <Link href="/events" className="panel group flex items-center gap-4 p-4 transition hover:border-line-strong">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-gold/30 bg-gold-tint text-gold-ink">
+              <Icons.Users className="h-5 w-5" />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold text-ink">Hackathon teams</span>
+              <span className="block text-xs text-muted">See every event and its members</span>
+            </span>
+            <Icons.ChevronRight className="ml-auto h-4 w-4 text-muted transition group-hover:translate-x-0.5 group-hover:text-ink" />
+          </Link>
+        </aside>
       </div>
     </div>
   );

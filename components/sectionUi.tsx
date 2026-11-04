@@ -1,16 +1,19 @@
 import { Icons } from "@/components/Icons";
 
-/** Badge colours for a section, or the neutral style for "all sections". */
+/**
+ * Each section gets one colour from the brand palette:
+ * CSE is navy, IT is royal blue and IoT is gold.
+ */
 export function sectionBadgeClass(section: string | undefined): string {
   switch (section) {
     case "IT":
-      return "badge-it";
+      return "chip-royal";
     case "IoT":
-      return "badge-iot";
+      return "chip-gold";
     case "CSE":
-      return "badge-cse";
+      return "chip-navy";
     default:
-      return "bg-slate-100 border border-slate-200 text-slate-600";
+      return "chip-neutral";
   }
 }
 
@@ -18,11 +21,11 @@ export function sectionBadgeClass(section: string | undefined): string {
 export function sectionSelectedClass(section: string): string {
   switch (section) {
     case "IT":
-      return "border-blue-500 bg-blue-50 text-blue-700";
+      return "border-royal bg-royal-tint text-royal";
     case "IoT":
-      return "border-amber-500 bg-amber-50 text-amber-700";
+      return "border-gold bg-gold-tint text-gold-ink";
     default:
-      return "border-violet-500 bg-violet-50 text-violet-700";
+      return "border-ink bg-navy-tint text-ink";
   }
 }
 

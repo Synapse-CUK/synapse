@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Icons } from "./Icons";
 import { SectionIcon, sectionBadgeClass } from "./sectionUi";
+import { Avatar } from "./ui";
 
 export type AchievementItem = {
   _id: string;
@@ -23,129 +24,118 @@ export type AchievementItem = {
 function timeAgo(timestamp: number): string {
   const diff = Date.now() - timestamp;
   const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d ago`;
-  return new Date(timestamp).toLocaleDateString();
+  return new Date(timestamp).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+export function StatusChip({ status }: { status: AchievementItem["status"] }) {
+  if (status === "verified") {
+    return (
+      <span className="chip-success">
+        <Icons.Verified className="h-3.5 w-3.5" />
+        Verified
+      </span>
+    );
+  }
+  if (status === "pending") {
+    return (
+      <span className="chip-gold">
+        <Icons.Pending className="h-3.5 w-3.5" />
+        In review
+      </span>
+    );
+  }
+  return (
+    <span className="chip-danger">
+      <Icons.Rejected className="h-3.5 w-3.5" />
+      Rejected
+    </span>
+  );
 }
 
 export default function AchievementCard({ item }: { item: AchievementItem }) {
-  const authorInitials = item.author?.name
-    ? item.author.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .substring(0, 2)
-        .toUpperCase()
-    : "?";
-
+  const authorName = item.author?.name || "Student";
   const isImage = item.proofUrl && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(item.proofUrl);
 
   return (
-    <article className="social-card card-shadow hover:card-shadow-md p-6 space-y-4">
-      {/* Author Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          {/* Avatar */}
+    <article className="panel p-6 transition hover:border-line-strong">
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           {item.author?._id ? (
-            <Link href={`/profile/${item.author._id}`}>
-              <div className="w-11 h-11 rounded-xl gradient-teal flex items-center justify-center text-white font-black text-base shrink-0 hover:opacity-90 transition">
-                {authorInitials}
-              </div>
+            <Link href={`/profile/${item.author._id}`} className="rounded-xl" aria-label={`${authorName}'s profile`}>
+              <Avatar name={authorName} />
             </Link>
           ) : (
-            <div className="w-11 h-11 rounded-xl gradient-teal flex items-center justify-center text-white font-black text-base shrink-0">
-              {authorInitials}
-            </div>
+            <Avatar name={authorName} />
           )}
 
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {item.author?._id ? (
-                <Link
-                  href={`/profile/${item.author._id}`}
-                  className="font-bold text-slate-900 hover:text-teal-700 transition leading-tight"
-                >
-                  {item.author?.name || "Student"}
-                </Link>
-              ) : (
-                <span className="font-bold text-slate-900">{item.author?.name || "Student"}</span>
-              )}
-
-              {/* Section Badge */}
+          <div className="min-w-0">
+            {item.author?._id ? (
+              <Link
+                href={`/profile/${item.author._id}`}
+                className="block truncate font-semibold text-ink transition hover:text-royal"
+              >
+                {authorName}
+              </Link>
+            ) : (
+              <span className="block truncate font-semibold text-ink">{authorName}</span>
+            )}
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
               {item.author?.section && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold ${sectionBadgeClass(item.author.section)}`}>
-                  <SectionIcon section={item.author.section} className="w-3 h-3" />
+                <span className={sectionBadgeClass(item.author.section)}>
+                  <SectionIcon section={item.author.section} className="h-3 w-3" />
                   {item.author.section}
-                  {item.author.year && ` · Yr ${item.author.year}`}
+                  {item.author.year ? ` Year ${item.author.year}` : ""}
                 </span>
               )}
+              <time dateTime={new Date(item.createdAt).toISOString()}>{timeAgo(item.createdAt)}</time>
             </div>
-
-            <p className="text-xs text-slate-400 mt-0.5">{timeAgo(item.createdAt)}</p>
           </div>
         </div>
 
-        {/* Status Badge */}
-        <div className="shrink-0">
-          {item.status === "verified" ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold badge-verified">
-              <Icons.Verified className="w-3.5 h-3.5" />
-              Verified
-            </span>
-          ) : item.status === "pending" ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold badge-pending">
-              <Icons.Pending className="w-3.5 h-3.5" />
-              Pending
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-red-50 border border-red-200 text-red-700">
-              <Icons.Rejected className="w-3.5 h-3.5" />
-              Rejected
-            </span>
-          )}
-        </div>
-      </div>
+        <StatusChip status={item.status} />
+      </header>
 
-      {/* Title */}
-      <h3 className="text-lg font-bold text-slate-900 leading-snug">{item.title}</h3>
+      <h3 className="mt-5 text-lg font-semibold leading-snug text-ink">{item.title}</h3>
+      <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-body">{item.description}</p>
 
-      {/* Description */}
-      <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">{item.description}</p>
-
-      {/* Proof Attachment */}
       {item.proofUrl && (
-        <div className="rounded-2xl overflow-hidden border border-slate-200">
+        <div className="mt-5 overflow-hidden rounded-xl border border-line">
           {isImage ? (
-            <a href={item.proofUrl} target="_blank" rel="noopener noreferrer" className="block group relative">
+            <a href={item.proofUrl} target="_blank" rel="noopener noreferrer" className="group relative block">
+              {/* Proof images come from Convex storage, so next/image would need a remote pattern per deployment. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={item.proofUrl}
-                alt="Achievement proof"
-                className="w-full max-h-72 object-cover group-hover:opacity-90 transition"
+                alt={`Proof for ${item.title}`}
+                loading="lazy"
+                className="max-h-80 w-full object-cover transition duration-300 group-hover:scale-[1.01]"
               />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition flex items-center justify-center">
-                <span className="opacity-0 group-hover:opacity-100 transition text-white text-xs font-bold bg-black/50 px-3 py-1.5 rounded-lg">
-                  View Full Image
-                </span>
-              </div>
+              <span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-lg bg-navy/80 px-2.5 py-1.5 text-xs font-semibold text-white opacity-0 backdrop-blur transition group-hover:opacity-100">
+                Open full image
+                <Icons.ArrowUpRight className="h-3.5 w-3.5" />
+              </span>
             </a>
           ) : (
             <a
               href={item.proofUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 p-4 bg-slate-50 hover:bg-slate-100 transition"
+              className="group flex items-center gap-3 bg-sunken/60 p-4 transition hover:bg-sunken"
             >
-              <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center shrink-0">
-                <Icons.Paperclip className="w-5 h-5 text-teal-600" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-800">View Certificate / Proof</p>
-                <p className="text-xs text-slate-400">Click to open attachment</p>
-              </div>
-              <Icons.ChevronRight className="w-4 h-4 text-slate-400 ml-auto" />
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-surface text-royal">
+                <Icons.Certificate className="h-5 w-5" />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold text-ink">Certificate or proof</span>
+                <span className="block text-xs text-muted">Opens in a new tab</span>
+              </span>
+              <Icons.ArrowUpRight className="ml-auto h-4 w-4 text-muted transition group-hover:text-ink" />
             </a>
           )}
         </div>

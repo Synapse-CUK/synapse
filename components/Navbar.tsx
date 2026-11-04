@@ -7,6 +7,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Icons } from "./Icons";
 import { SectionIcon, sectionBadgeClass } from "./sectionUi";
+import { BrandMark } from "./ui";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -15,107 +16,120 @@ export default function Navbar() {
   const navLinks = [
     { href: "/feed", label: "Feed" },
     { href: "/events", label: "Projects" },
-    ...(dbUser?.role === "faculty"
-      ? [{ href: "/faculty/dashboard", label: "Faculty Portal" }]
-      : []),
-    ...(dbUser?.role === "coordinator"
-      ? [{ href: "/coordinator/dashboard", label: "Coordinator" }]
-      : []),
+    ...(dbUser?.role === "faculty" ? [{ href: "/faculty/dashboard", label: "Faculty" }] : []),
+    ...(dbUser?.role === "coordinator" ? [{ href: "/coordinator/dashboard", label: "Coordinator" }] : []),
   ];
 
-  return (
-    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/70 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-        {/* Brand Mark */}
-        <Link href="/feed" className="flex items-center gap-2.5 shrink-0 group">
-          <div className="w-9 h-9 rounded-xl gradient-teal flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-            <Icons.Activity className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-display font-black text-xl tracking-tight text-slate-900">
-            Synapse
-          </span>
-        </Link>
+  const isActive = (href: string) => pathname === href || pathname?.startsWith(href + "/");
 
-        {/* Nav Links */}
-        <SignedIn>
-          <nav className="hidden sm:flex items-center gap-1 bg-slate-100/80 rounded-2xl p-1">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.href || pathname?.startsWith(link.href + "/");
-              return (
+  return (
+    <header className="sticky top-0 z-40 border-b border-line/80 bg-canvas/85 backdrop-blur-md supports-[backdrop-filter]:bg-canvas/70">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-6 px-4 sm:px-6">
+        <div className="flex items-center gap-8">
+          <Link href="/" className="group flex shrink-0 items-center gap-2.5" aria-label="Synapse home">
+            <BrandMark className="h-8 w-8 transition-transform duration-300 group-hover:-rotate-6" />
+            <span className="font-display text-[1.6rem] font-semibold leading-none tracking-tight text-ink">
+              Synapse
+            </span>
+          </Link>
+
+          <SignedIn>
+            <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
+              {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                    isActive
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-500 hover:text-slate-800 hover:bg-white/60"
+                  aria-current={isActive(link.href) ? "page" : undefined}
+                  className={`relative rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                    isActive(link.href) ? "text-ink" : "text-muted hover:text-ink"
                   }`}
                 >
                   {link.label}
+                  <span
+                    aria-hidden
+                    className={`absolute inset-x-3 -bottom-[13px] h-0.5 rounded-full bg-gold transition-opacity ${
+                      isActive(link.href) ? "opacity-100" : "opacity-0"
+                    }`}
+                  />
                 </Link>
-              );
-            })}
-          </nav>
-        </SignedIn>
+              ))}
+            </nav>
+          </SignedIn>
+        </div>
 
-        {/* Right Section */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex shrink-0 items-center gap-2.5">
           <SignedIn>
             {dbUser && (
-              <div className="hidden sm:flex items-center gap-2">
+              <div className="hidden items-center gap-2 lg:flex">
                 {dbUser.role === "coordinator" && (
-                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-purple-100 text-purple-800 border border-purple-200">
-                    👑 Coordinator
+                  <span className="chip-navy">
+                    <Icons.Crown className="h-3.5 w-3.5" />
+                    Coordinator
                   </span>
                 )}
-
                 {dbUser.role === "faculty_pending" && (
-                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                    ⏳ Pending Faculty
+                  <span className="chip-gold">
+                    <Icons.Hourglass className="h-3.5 w-3.5" />
+                    Faculty pending
                   </span>
                 )}
-
                 {dbUser.role === "faculty" && (
-                  <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
-                    🎓 Faculty
+                  <span className="chip-navy">
+                    <Icons.Faculty className="h-3.5 w-3.5" />
+                    Faculty
                   </span>
                 )}
-
-                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold ${sectionBadgeClass(dbUser.section)}`}>
-                  <SectionIcon section={dbUser.section} className="w-3.5 h-3.5" />
-                  <span>{dbUser.classCode || `${dbUser.section} · Sem ${dbUser.effectiveSemester || 1}`}</span>
-                </div>
-
-                <Link
-                  href={`/profile/${dbUser._id}`}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition"
-                >
-                  <Icons.Lightning className="w-3.5 h-3.5 text-amber-500" />
-                  <span>{dbUser.xp || 0} XP</span>
-                </Link>
+                <span className={`${sectionBadgeClass(dbUser.section)} font-mono`}>
+                  <SectionIcon section={dbUser.section} className="h-3.5 w-3.5" />
+                  {dbUser.classCode || `${dbUser.section} Sem ${dbUser.effectiveSemester || 1}`}
+                </span>
               </div>
             )}
-            <UserButton afterSignOutUrl="/" />
+            {dbUser && (
+              <Link
+                href={`/profile/${dbUser._id}`}
+                className="chip-gold hidden h-8 px-3 transition hover:border-gold sm:inline-flex"
+                title="Your XP"
+              >
+                <Icons.Lightning className="h-3.5 w-3.5" />
+                <span className="tabular-nums">{dbUser.xp || 0} XP</span>
+              </Link>
+            )}
+            <div className="ml-1 flex h-8 w-8 items-center justify-center">
+              <UserButton afterSignOutUrl="/" />
+            </div>
           </SignedIn>
 
           <SignedOut>
-            <div className="flex gap-2">
-              <Link
-                href="/sign-in"
-                className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition"
-              >
-                Sign in
-              </Link>
-              <Link
-                href="/sign-up"
-                className="px-4 py-2 rounded-xl text-sm font-bold gradient-teal text-white shadow-sm hover:opacity-90 transition"
-              >
-                Join Synapse
-              </Link>
-            </div>
+            <Link href="/sign-in" className="btn-ghost">
+              Sign in
+            </Link>
+            <Link href="/sign-up" className="btn-primary">
+              Join Synapse
+            </Link>
           </SignedOut>
         </div>
       </div>
+
+      {/* Small screens: the same links as a scrollable row */}
+      <SignedIn>
+        <nav aria-label="Main" className="border-t border-line/70 md:hidden">
+          <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-3 py-2">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={isActive(link.href) ? "page" : undefined}
+                className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                  isActive(link.href) ? "bg-surface text-ink shadow-soft" : "text-muted"
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        </nav>
+      </SignedIn>
     </header>
   );
 }
